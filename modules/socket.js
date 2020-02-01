@@ -26,6 +26,7 @@ exports.init = async () => {
         });
 
         socket.on("User:Arrived", async function (data) {
+            console.info('user arrived', data);
             UserController.findOrCreate({
                 where: {
                     email: data.email,
@@ -38,6 +39,7 @@ exports.init = async () => {
                     question: data.question
                 }
             }).then(([user, created]) => {
+                console.info('user created', user);
                 const plainUser = user.get({plain: true});
                 socket.join(plainUser.channel);
                 roomInit(socket, user);
