@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang='en'>
+
+<head>
+  <style>
+    .silc-btn-button {
+      background-position: 50% center;
+      bottom: 0;
+      right: 0;
+      cursor: pointer;
+      background-repeat: no-repeat;
+      background-size: 27px;
+      border-radius: 50%;
+      height: 55px;
+      width: 55px;
+      position: absolute;
+    }
+
+    #si-wrapper.si-livechat .silc-btn-button {
+      background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAFoCAYAAADttMYPAAAKL2lDQ…F6PcmrpZRta0mwYJmiVdLOx/qN+lvvpX0sjCEgAAAArK//B9Dn7q/xQEZjAAAAAElFTkSuQmCC);
+    }
+
+    .silc-btn-button,
+    #si-wrapper {
+      box-shadow: 0 6px 12px 0 rgba(0, 0, 0, 0.2);
+    }
+
+    .silc-btn-button-close {
+      background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAMAAAAM7l6QAAAATlBMV…ddXTzEw67G43/k0bpv6+nqnac7P3zd1d+mJl+CvrYmL3WfP5rdGLokt1OvAAAAAElFTkSuQmCC) !important;
+      background-size: 20px !important;
+    }
+
+    #siWidget-chat {
+      position: fixed;
+      right: 25px;
+      height: calc(100% - 150px);
+      bottom: 90px;
+      width: 360px;
+      min-height: 260px;
+      max-height: 590px;
+      -webkit-box-shadow: 0 5px 30px rgba(0, 0, 0, .15) !important;
+      box-shadow: 0 5px 30px rgba(0, 0, 0, .15) !important;
+      border-radius: 6px !important;
+      overflow: hidden !important;
+      overflow: hidden;
+      display: none;
+      z-index: 9999999;
+      background: none 0% 0% repeat scroll transparent;
+      border: 0px none;
+    }
+
+    .siScale {
+      z-index: 999999999 !important;
+      display: visible;
+      transform: scale(1);
+      transform-origin: right 95% 0;
+      transition: transform 0.25s ease-in-out 0s, opacity 0.1s linear 0.15s, -webkit-transform 0.30s ease-in-out 0s;
+      opacity: 1;
+    }
+
+    .siClosed {
+      transform-origin: right 95% 0;
+      transform: translate(0px, 0px) scale(0.1);
+      opacity: 0;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="silc-btn-button silc-btn-button-color silc-btn-button-close" style="background-color: rgb(0, 174, 239);">
+  </div>
+  <div class="siScale" id="siWidget-chat" style="display: inherit;">
+    <iframe id="si_frame" scrolling="no" width="100%" height="100%" frameborder="0" allowtransparency="true"
+      src="/template.html"></iframe></div>
+</body>
+
+</html>
