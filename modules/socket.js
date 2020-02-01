@@ -17,7 +17,7 @@ exports.emitOverChannel = emitOverChannel;
 exports.init = async () => {
     global.io.on('connection', async (socket) => {
         const query = socket.request._query;
-
+        console.log('socket connected');
         socket.on("NEW:Message", function (data) {
             console.log('new message', data);
             global.bot.postMessageToChannel('general', `${data.message} from ${data.email}`, {

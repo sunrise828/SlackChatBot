@@ -1,7 +1,7 @@
 var siChatStarted = "";
 $(function () {
     "use strict";
-    var chatUrl = '/'
+    var chatUrl = 'http://testrtp.com:8000/'
     // var chatUrl='https://www.socialintents.com/';
 
     var chatContent = $('#chatContent');
