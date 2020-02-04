@@ -1,9 +1,8 @@
 var siChatStarted = "";
 $(function () {
     "use strict";
-    var chatUrl = 'http://testrtp.com:8000/'
-    // var chatUrl='https://www.socialintents.com/';
-
+    
+    
     var chatContent = $('#chatContent');
     var input = $('#message');
     var status = $('#status');
@@ -22,6 +21,7 @@ $(function () {
     var lastTime = 0;
     var chatStatus = '';
 
+    var chatUrl = chatwidget_vars.chatUrl;
     var wid = chatwidget_vars.wid;
     var author = chatwidget_vars.defaultVisitorText;
     var currentPage = chatwidget_vars.cp;
@@ -151,28 +151,28 @@ $(function () {
         });
     };
     
-    if ("notstarted" !== chatStatus) {
-        newSubscribe();
-        $('#form-presales').hide();
-        $('.siButtonActionClose-chat').removeClass('hidden');
-        $('#form-chat-wrap').show();
-        $('#message-area').show();
+    // if ("notstarted" !== chatStatus) {
+    //     newSubscribe();
+    //     $('#form-presales').hide();
+    //     $('.siButtonActionClose-chat').removeClass('hidden');
+    //     $('#form-chat-wrap').show();
+    //     $('#message-area').show();
 
-        $('#form-chat').show();
-        $('#textarea').css({
-            'display': 'table-row'
-        });
+    //     $('#form-chat').show();
+    //     $('#textarea').css({
+    //         'display': 'table-row'
+    //     });
 
-        $('#body').css({
-            'height': '251px;'
-        });
-        if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
-            $('#message').focus();
-        } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
-            $('#message').addClass('message_ios');
-        }
-        loadEmoji();
-    }
+    //     $('#body').css({
+    //         'height': '251px;'
+    //     });
+    //     if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
+    //         $('#message').focus();
+    //     } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
+    //         $('#message').addClass('message_ios');
+    //     }
+    //     loadEmoji();
+    // }
 
 
     input.keydown(function (e) {

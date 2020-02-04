@@ -12,7 +12,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
+    joined: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
     slackId: DataTypes.STRING
+
   }, {});
   User.associate = function(models) {
     // associations can be defined here

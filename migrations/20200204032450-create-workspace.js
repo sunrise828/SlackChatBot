@@ -1,31 +1,48 @@
 'use strict';
 module.exports = {
   up: (queryInterface, Sequelize) => {
-    return queryInterface.createTable('ChatUsers', {
+    return queryInterface.createTable('Workspaces', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      channel: {
+      accessToken: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      email: {
+      userId: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      name: {
+      teamName: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      sessionId: {
+      incomeChannelName: {
         type: Sequelize.STRING,
         allowNull: false
       },
-      question: {
-        type: Sequelize.STRING
+      incomeChannelId: {
+        type: Sequelize.STRING,
+        allowNull: false
+      },
+      botUserId: {
+        type: Sequelize.STRING,
+        allowNull: false
+      },
+      botAccessToken: {
+        type: Sequelize.STRING,
+        allowNull: false
+      },
+      serialId: {
+        type: Sequelize.STRING,
+        allowNull: false
+      },
+      status: {
+        type: Sequelize.INTEGER,
+        allowNull: false
       },
       createdAt: {
         allowNull: false,
@@ -38,6 +55,6 @@ module.exports = {
     });
   },
   down: (queryInterface, Sequelize) => {
-    return queryInterface.dropTable('ChatUsers');
+    return queryInterface.dropTable('Workspaces');
   }
 };

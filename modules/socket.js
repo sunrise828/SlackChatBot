@@ -17,13 +17,6 @@ exports.emitOverChannel = emitOverChannel;
 exports.init = async () => {
     global.io.on('connection', async (socket) => {
         const query = socket.request._query;
-        console.log('socket connected');
-        socket.on("NEW:Message", function (data) {
-            console.log('new message', data);
-            global.bot.postMessageToChannel('general', `${data.message} from ${data.email}`, {
-                icon_emoji: ':cat:'
-            });
-        });
 
         socket.on("User:Arrived", async function (data) {
             console.info('user arrived', data);
@@ -39,7 +32,6 @@ exports.init = async () => {
                     question: data.question
                 }
             }).then(([user, created]) => {
-                console.info('user created', user);
                 const plainUser = user.get({plain: true});
                 socket.join(plainUser.channel);
                 roomInit(socket, user);
@@ -62,32 +54,56 @@ function roomInit(socket, user) {
     const plainUser = user.get({plain: true});
     const roomId = plainUser.channel;
     socket.in(`${roomId}`).on('Joined:Room', async () => {
-        if (!plainUser.channelId || plainUser.channelId.length <= 0) {
-            const res = await slackbot.createChannel(roomId);
-            if (res.data.ok) {
-                const channel = res.data.channel;
-                const joinRes = await slackbot.joinChannel(user.channelId);
+        const flag = await slackbot.init(plainUser.workspaceId);
+        if (flag) {
+            const workspace = global.bot[plainUser.workspaceId].myWorkspace;
+            const accessToken = workspace.accessToken;
+            if (!plainUser.channelId || plainUser.channelId.length <= 0) {
+                const res = await slackbot.createChannel(roomId, accessToken);
+            
+                const cRes = await global.bot[plainUser.workspaceId]._api('channels.list');
+                if (cRes.ok) {
+                    global.bot[plainUser.workspaceId].channels = cRes.channels;
+                }
+                
+                if (res.data.ok) {
+                    const channel = res.data.channel;
+                    const joinRes = await slackbot.joinChannel(user.channelId, accessToken);
+                    if (!joinRes.data.ok) {
+                        console.error('error of joining channel:', joinRes.data.error);
+                    }
+                    user.channelId = channel.id;
+                    user.slackId = channel.creator;
+                    await user.save();
+                    const broadMessage = `${plainUser.name} sent first message to #${plainUser.channel}`;
+                    await global.bot[plainUser.workspaceId].postMessageToChannel(workspace.incomeChannelName, broadMessage, {});
+                } else {
+                    console.error('error of creating channel:', res.data.error);
+                }
+            }
+
+            if (plainUser.joined < 1) {
+                const joinRes = await slackbot.joinChannel(plainUser.channelId, accessToken);
                 if (!joinRes.data.ok) {
                     console.error('error of joining channel:', joinRes.data.error);
+                } else {
+                    user.joined = 1;
+                    user.save();
                 }
-                user.channelId = channel.id;
-                user.slackId = channel.creator;
-                await user.save();
-            } else {
-                console.error('error of creating channel:', res.data.error);
             }
-        }
-
-        if (plainUser.active < 1) {
-            const activeRes = await slackbot.inviteUser(user.channelId, 'UTE3U71PZ');
-            if (activeRes.data.ok) {
-                user.active = 1;
-                await user.save();
-            } else {
-                console.error('error of joining channel:', activeRes.data.error);
+    
+            if (plainUser.active < 1) {
+                const activeRes = await slackbot.inviteUser(user.channelId, accessToken, workspace.botUserId);
+                if (activeRes.data.ok) {
+                    user.active = 1;
+                    await user.save();
+                } else {
+                    console.error('error of joining channel:', activeRes.data.error);
+                }
             }
+        } else {
+            emitToSocketId(plainUser.channel, 'Error', 'Invalid Workspace Id');
         }
-        
     });
 
     socket.in(`${roomId}`).on('Message', async (message) => {
@@ -99,7 +115,7 @@ function roomInit(socket, user) {
             domain: 'user'
         });
         // slackbot.postMessageToChannel(plainUser.channelId, message.message)
-        global.bot.postMessageToChannel(plainUser.channel, message.message, {}).then(res => {
+        global.bot[message.wid].postMessageToChannel(plainUser.channel, message.message, {}).then(res => {
             history.sent = 1;
             history.save();
         }).fail(err => {

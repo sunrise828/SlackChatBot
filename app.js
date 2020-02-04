@@ -10,7 +10,7 @@ app.use(logger('dev'));
 // Parse incoming requests data (https://github.com/expressjs/body-parser)
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+// process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
 app.use(express.static('./public'));
 // Models
@@ -34,9 +34,8 @@ const server = http.createServer(app);
 server.listen(port);
 
 //socket init
+global.bot = {};
 global.io = require('socket.io').listen(server);
-const slackbot = require('./modules').slackbot;
-slackbot.init();
 const socket = require('./modules').socket;
 socket.init();
 
