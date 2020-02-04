@@ -75,7 +75,7 @@ function roomInit(socket, user) {
                     user.channelId = channel.id;
                     user.slackId = channel.creator;
                     await user.save();
-                    const broadMessage = `${plainUser.name} sent first message to #${plainUser.channel}`;
+                    const broadMessage = `${plainUser.name} sent first message to <#${plainUser.channelId}|${plainUser.channel}>`;
                     await global.bot[plainUser.workspaceId].postMessageToChannel(workspace.incomeChannelName, broadMessage, {});
                 } else {
                     console.error('error of creating channel:', res.data.error);
