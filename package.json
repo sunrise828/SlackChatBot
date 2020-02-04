@@ -4,7 +4,7 @@
   "description": "socket app for slack bot",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js",
+    "start": "pm2 start app.js",
     "dev": "nodemon --inspect app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -24,6 +24,7 @@
     "morgan": "^1.9.1",
     "mysql": "^2.18.1",
     "mysql2": "^2.1.0",
+    "pm2": "^4.2.3",
     "sequelize": "^5.21.3",
     "slackbots": "^1.2.0",
     "smartslack": "^1.2.2",
