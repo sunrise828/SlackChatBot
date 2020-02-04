@@ -3,6 +3,13 @@ const logger = require('morgan');
 const bodyParser = require('body-parser');
 // This will be our application entry. We'll setup our server here.
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
+
+const option = {
+    key: fs.readFileSync('./certification/privatekey.pem'),
+    cert: fs.readFileSync('./certification/server.crt')
+}
 // Set up the express app
 const app = express();
 // Log requests to the console.
@@ -30,13 +37,14 @@ app.get('*', (req, res) => res.status(200).send({
 }));
 const port = parseInt(process.env.PORT, 10) || 8000;
 app.set('port', port);
-const server = http.createServer(app);
-server.listen(port);
+const server = https.createServer(option, app);
 
 //socket init
 global.bot = {};
 global.io = require('socket.io').listen(server);
 const socket = require('./modules').socket;
 socket.init();
+
+server.listen(port);
 
 module.exports = app;

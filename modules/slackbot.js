@@ -26,7 +26,6 @@ exports.init = async (workspaceId) => {
       });
     
       global.bot[workspaceId].on('message', function(data) {
-        console.log(data);
         if (data.type != "message" || data.subtype == 'bot_message') {
           return;
         }
