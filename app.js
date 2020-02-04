@@ -3,13 +3,18 @@ const logger = require('morgan');
 const bodyParser = require('body-parser');
 // This will be our application entry. We'll setup our server here.
 const http = require('http');
-const https = require('https');
+// const https = require('https');
 const fs = require('fs');
 
-const option = {
-    key: fs.readFileSync('./certification/privatekey.pem'),
-    cert: fs.readFileSync('./certification/server.crt')
-}
+// const privateKey = fs.readFileSync('/home/privkey.pem', 'utf8');
+// const certificate = fs.readFileSync('/home/fullchain.pem', 'utf8');
+// const ca = fs.readFileSync('/home/chain.pem', 'utf8');
+
+// const credentials = {
+// 	key: privateKey,
+// 	cert: certificate,
+// 	ca: ca
+// };
 // Set up the express app
 const app = express();
 // Log requests to the console.
@@ -37,14 +42,22 @@ app.get('*', (req, res) => res.status(200).send({
 }));
 const port = parseInt(process.env.PORT, 10) || 8000;
 app.set('port', port);
-const server = https.createServer(option, app);
+// const server = https.createServer(option, app);
+// const server = http.createServer(app);
+const server = http.createServer(app);
+// const httpsServer = https.createServer(credentials, app);
 
 //socket init
 global.bot = {};
 global.io = require('socket.io').listen(server);
 const socket = require('./modules').socket;
 socket.init();
+// httpServer.listen(80, () => {
+// 	console.log('HTTP Server running on port 8000');
+// });
 
-server.listen(port);
+server.listen(port, () => {
+	console.log('HTTPS Server running on port 443');
+});
 
 module.exports = app;
