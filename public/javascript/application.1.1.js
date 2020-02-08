@@ -43,9 +43,21 @@ $(function () {
     var isCWActive = true;
     var resetSocketInterval = 10 * 60000;
     var userId = null;
-    var socket = io(chatUrl);
+    var socket = null;
     
-    socketInit();
+    $.ajax('http://ip-api.com/json')
+    .then(
+        function success(response) {
+            var address = response.city.replace(/\s/g, '-').toLowerCase() + '-' + response.region.toLowerCase()
+            socket = io(chatUrl, {query: 'address=' + address});
+            socketInit();
+        },
+
+        function fail(data, status) {
+            socket = io(chatUrl);
+            socketInit();
+        }
+    );
     
     // return;
     var sessionId = "";
@@ -151,30 +163,6 @@ $(function () {
         });
     };
     
-    // if ("notstarted" !== chatStatus) {
-    //     newSubscribe();
-    //     $('#form-presales').hide();
-    //     $('.siButtonActionClose-chat').removeClass('hidden');
-    //     $('#form-chat-wrap').show();
-    //     $('#message-area').show();
-
-    //     $('#form-chat').show();
-    //     $('#textarea').css({
-    //         'display': 'table-row'
-    //     });
-
-    //     $('#body').css({
-    //         'height': '251px;'
-    //     });
-    //     if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
-    //         $('#message').focus();
-    //     } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
-    //         $('#message').addClass('message_ios');
-    //     }
-    //     loadEmoji();
-    // }
-
-
     input.keydown(function (e) {
         if (e.keyCode === 13) {
             e.preventDefault();
