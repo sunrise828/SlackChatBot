@@ -45,11 +45,29 @@ $(function () {
 
     init();
 
-    $.ajax('http://ip-api.com/json')
+    // $.ajax('http://ip-api.com/json')
+    // .then(
+    //     function success(response) {
+    //         var address = response.city.replace(/\s/g, '_').toLowerCase() + '_' + response.region.toLowerCase()
+    //         socket = io(chatUrl, { query: 'address=' + address });
+    //         socketInit();
+    //     },
+
+    //     function fail(data, status) {
+    //         socket = io(chatUrl);
+    //         socketInit();
+    //     }
+    // );
+    $.ajax('https://tools.keycdn.com/geo.json')
         .then(
             function success(response) {
-                var address = response.city.replace(/\s/g, '_').toLowerCase() + '_' + response.region.toLowerCase()
-                socket = io(chatUrl, { query: 'address=' + address });
+                if (response.status == 'success') {
+                    const res = response.data.geo;
+                    var address = res.city.replace(/\s/g, '_').toLowerCase() + '_' + res.region_code.toLowerCase()
+                    socket = io(chatUrl, { query: 'address=' + address });
+                } else {
+                    socket = io(chatUrl);
+                }
                 socketInit();
             },
 
