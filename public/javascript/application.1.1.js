@@ -83,7 +83,7 @@ $(function () {
         var siParams = sessionStorage.getItem("si_params");
         if (siParams && siParams.length > 0) { $("#params").val(siParams); }
         $('.slim-scroll').slimScroll({
-            height: window.innerHeight - 120,
+            height: chatwidget_vars.widgetHeight - 120,
             railVisible: true,
             start: 'bottom'
         });
