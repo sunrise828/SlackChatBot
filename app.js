@@ -1,20 +1,10 @@
 const express = require('express');
 const logger = require('morgan');
 const bodyParser = require('body-parser');
+const expressIp = require('express-ip');
 // This will be our application entry. We'll setup our server here.
 const http = require('http');
-// const https = require('https');
-const fs = require('fs');
 
-// const privateKey = fs.readFileSync('/home/privkey.pem', 'utf8');
-// const certificate = fs.readFileSync('/home/fullchain.pem', 'utf8');
-// const ca = fs.readFileSync('/home/chain.pem', 'utf8');
-
-// const credentials = {
-// 	key: privateKey,
-// 	cert: certificate,
-// 	ca: ca
-// };
 // Set up the express app
 const app = express();
 // Log requests to the console.
@@ -23,7 +13,7 @@ app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 // process.env.NODE_ENV = process.env.NODE_ENV || 'development';
-
+app.use(expressIp().getIpInfoMiddleware);
 app.use(express.static('./public'));
 // Models
 var models = require('./models');
@@ -48,16 +38,15 @@ const server = http.createServer(app);
 // const httpsServer = https.createServer(credentials, app);
 
 //socket init
+global.timers = {};
 global.bot = {};
+global.slackWeb = {};
 global.io = require('socket.io').listen(server);
 const socket = require('./modules').socket;
 socket.init();
-// httpServer.listen(80, () => {
-// 	console.log('HTTP Server running on port 8000');
-// });
 
 server.listen(port, () => {
-	console.log('HTTPS Server running on port 443');
+	console.log('HTTPS Server running on port 8000');
 });
 
 module.exports = app;

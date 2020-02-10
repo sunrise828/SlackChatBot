@@ -1,13 +1,11 @@
 var siChatStarted = "";
 $(function () {
     "use strict";
-    
-    
+
     var chatContent = $('#chatContent');
     var input = $('#message');
     var status = $('#status');
     var errorClosed = false;
-    // var socket = atmosphere;
     var msgType = "visitor";
     var refresh = false;
     var typing = false;
@@ -44,21 +42,23 @@ $(function () {
     var resetSocketInterval = 10 * 60000;
     var userId = null;
     var socket = null;
-    
-    $.ajax('http://ip-api.com/json')
-    .then(
-        function success(response) {
-            var address = response.city.replace(/\s/g, '-').toLowerCase() + '-' + response.region.toLowerCase()
-            socket = io(chatUrl, {query: 'address=' + address});
-            socketInit();
-        },
 
-        function fail(data, status) {
-            socket = io(chatUrl);
-            socketInit();
-        }
-    );
-    
+    init();
+
+    $.ajax('http://ip-api.com/json')
+        .then(
+            function success(response) {
+                var address = response.city.replace(/\s/g, '_').toLowerCase() + '_' + response.region.toLowerCase()
+                socket = io(chatUrl, { query: 'address=' + address });
+                socketInit();
+            },
+
+            function fail(data, status) {
+                socket = io(chatUrl);
+                socketInit();
+            }
+        );
+
     // return;
     var sessionId = "";
     try {
@@ -85,6 +85,171 @@ $(function () {
     } catch (err) {
         sessionId = guid();
     }
+
+    function init() {
+        var siName = sessionStorage.getItem("si_name");
+        if (siName && siName.length > 0) { $("#name").val(siName); }
+        var siEmail = sessionStorage.getItem("si_email");
+        if (siEmail && siEmail.length > 0) { $("#email").val(siEmail); }
+        var siPhone = sessionStorage.getItem("si_phone");
+        if (siPhone && siPhone.length > 0) { $("#phone").val(siPhone); }
+        var siGroup = sessionStorage.getItem("si_group");
+        if (siGroup && siGroup.length > 0) { $("#group").val(siGroup); }
+        var siParams = sessionStorage.getItem("si_params");
+        if (siParams && siParams.length > 0) { $("#params").val(siParams); }
+        $('.slim-scroll').slimScroll({
+            height: window.innerHeight - 120,
+            railVisible: true,
+            start: 'bottom'
+        });
+
+        $('#title:not(.silc-btn-button-close)').click(function (event) {
+            parent.postMessage("siCloseWindow", "*");
+        });
+
+        $('.silc-btn-button-close').click(function (e) {
+
+            if ("" != siChatStarted
+                && "timeout" !== siChatStarted) {
+                e.preventDefault();
+                e.stopPropagation();
+                $('#form-chat-wrap').hide();
+                $('#message-area').hide();
+                $('#form-chat').hide();
+                $('#form-close-chat').show();
+            }
+            else {
+                parent.postMessage("siCloseWindow", "*");
+            }
+        });
+        if (window.self === window.top) {
+            var $viewportMeta = $('meta[name="viewport"]');
+            $('input, select, textarea').bind('focus blur', function (event) {
+                $viewportMeta.attr('content', 'width=device-width,initial-scale=1,maximum-scale=' + (event.type == 'blur' ? 10 : 1));
+            });
+        }
+    }
+
+    $('#preSalesStart').click(function (event) {
+        refresh = false;
+        newSubscribe();
+        var offline = $('#offline').val();
+        var name = $('#name').val();
+        var email = $('#email').val();
+        var phone = $('#phone').val();
+        var custom = $('#custom').val();
+        var params = $('#params').val();
+        var consent = "";
+        if ($('#consent').is(':checked')) {
+            consent = "yes";
+        }
+        var question = $('#question').val();
+        var group = $('#group').val();
+        sessionStorage.setItem("si_name", name);
+        sessionStorage.setItem("si_email", email);
+        sessionStorage.setItem("si_phone", phone);
+        sessionStorage.setItem("si_group", group);
+        sessionStorage.setItem("si_consent", consent);
+        sessionStorage.setItem("si_question", question);
+        var vname = true;
+        var vemail = true;
+        var vphone = true;
+        var vgroup = true;
+        var vconsent = true;
+        if ($('#name').is(":visible") && name.length === 0) vname = false;
+        if ($('#email').is(":visible") && email.length === 0) vemail = false;
+        if ($('#email').is(":visible") && !validEmail(email)) vemail = false;
+
+        if ($('#phone').is(":visible")) {
+            var phonePH = $('#phone').attr('placeholder');
+            if (phonePH.indexOf('*') >= 0 && phone.length === 0) {
+                vphone = false;
+            }
+        }
+
+        if ($('#group').is(":visible")) {
+            var groupPH = $("#group option:selected").text();
+            if (groupPH.indexOf('*') >= 0 && (group == null || group.length === 0)) {
+                vgroup = false;
+            }
+        }
+
+        if (invalidEmailMessage.length === 0) vemail = true;
+        if (genericError.length === 0) {
+            vname = true;
+            vphone = true;
+            vgroup = true;
+        }
+        if ($('#consent').is(":visible") && consent !== "yes") {
+            vconsent = false;
+            $(".consentlbl").addClass("consenterror");
+        } else {
+            $(".consentlbl").removeClass("consenterror");
+        }
+
+        if (vname && vemail && vphone && vgroup && vconsent) {
+
+            sending = true;
+            var ctime = new Date().getTime();
+
+            socket.emit('User:Arrived', {
+                time: ctime,
+                author: author,
+                message: question,
+                chatStatus: chatStatus,
+                type: msgType,
+                wid: wid,
+                sessionId: sessionId,
+                currentPage: currentPage,
+                agentId: aid,
+                role: role,
+                visits: visits,
+                name: name,
+                email: email,
+                phone: phone,
+                agentPhoto: '',
+                group: group,
+                version: '1.1',
+                consent: consent,
+                params: params
+            });
+            $('#form-presales').hide();
+            $('.siButtonActionClose-chat').removeClass('hidden');
+            $('#form-chat-wrap').show();
+            $('#message-area').show();
+            $('#form-chat').show();
+            $('.siButtonActionClose-chat').show();
+            $('#textarea').css({
+                'display': 'table-row'
+            });
+
+            $('#body').css({
+                'height': '251px;'
+            });
+            if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
+                $('#message').focus();
+            } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
+
+            }
+            loadEmoji();
+
+        } else {
+            if ($('#email').is(":visible") && !validEmail(email)) {
+                $('#errorMsg').html("<p class='operator' style='color:red'>" + invalidEmailMessage + "</p>");
+                $('#buffer').css('padding-top', '30px');
+            } else {
+                $('#errorMsg').html("<p class='operator' style='color:red'>" + genericError + "</p>");
+                $('#buffer').css('padding-top', '30px');
+            }
+        }
+    });
+
+    function loadEmoji() {
+        if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
+            $("#btnEmoji").show();
+            $("#btnSendHref").show();
+        }
+    };
 
     function onMessage(response) {
         var json = response;
@@ -152,7 +317,7 @@ $(function () {
     };
 
     function socketInit() {
-        socket.on('Room:Created', function(data) {
+        socket.on('Room:Created', function (data) {
             userId = data.id;
             socket.emit('Joined:Room');
         });
@@ -161,8 +326,16 @@ $(function () {
             console.log(data);
             onMessage(data);
         });
+
+        socket.on('NoSupport', function() {
+            var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment-wrapper-admin-img"><div class="si-img"><img data-name="' + widgetTitle + '" class="initials img-circle"/></div></div><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">'
+            msg += "Currently we're unavailable! Please wait!";
+            msg += '</div></div></div></div><span></span></div>';
+            chatContent.append(msg);
+            $('#message').attr('disabled', true);
+        })
     };
-    
+
     input.keydown(function (e) {
         if (e.keyCode === 13) {
             e.preventDefault();
@@ -193,20 +366,11 @@ $(function () {
                 };
                 pushl(JSON.stringify(msg));
                 socket.emit('Message', msg);
-                // subSocket.push(msg);
-                // if (errorClosed){
-                //     errorClosed=false;
-                //     subSocket = socket.subscribe(request);
-                // }
             }
             $(this).val('').focus();
             try {
                 $('.msgArea').emojiPicker('hide');
             } catch (err) { }
-            autosize.destroy(document.querySelectorAll('#message'));
-            setTimeout(function () {
-                autosize(document.querySelector('#message'));
-            }, 250);
         } else if (!typing) {
             if (!typingTimer) {
                 // typingTimer = setTimeout(function () {
@@ -501,121 +665,7 @@ $(function () {
 
     });
 
-    $('#preSalesStart').click(function (event) {
-        refresh = false;
-        newSubscribe();
-        var offline = $('#offline').val();
-        var name = $('#name').val();
-        var email = $('#email').val();
-        var phone = $('#phone').val();
-        var custom = $('#custom').val();
-        var params = $('#params').val();
-        var consent = "";
-        if ($('#consent').is(':checked')) {
-            consent = "yes";
-        }
-        var question = $('#question').val();
-        var group = $('#group').val();
-        sessionStorage.setItem("si_name", name);
-        sessionStorage.setItem("si_email", email);
-        sessionStorage.setItem("si_phone", phone);
-        sessionStorage.setItem("si_group", group);
-        sessionStorage.setItem("si_consent", consent);
-        var vname = true;
-        var vemail = true;
-        var vphone = true;
-        var vgroup = true;
-        var vconsent = true;
-        if ($('#name').is(":visible") && name.length === 0) vname = false;
-        if ($('#email').is(":visible") && email.length === 0) vemail = false;
-        if ($('#email').is(":visible") && !validEmail(email)) vemail = false;
-
-        if ($('#phone').is(":visible")) {
-            var phonePH = $('#phone').attr('placeholder');
-            if (phonePH.indexOf('*') >= 0 && phone.length === 0) {
-                vphone = false;
-            }
-        }
-
-        if ($('#group').is(":visible")) {
-            var groupPH = $("#group option:selected").text();
-            if (groupPH.indexOf('*') >= 0 && (group == null || group.length === 0)) {
-                vgroup = false;
-            }
-        }
-
-        if (invalidEmailMessage.length === 0) vemail = true;
-        if (genericError.length === 0) {
-            vname = true;
-            vphone = true;
-            vgroup = true;
-        }
-        if ($('#consent').is(":visible") && consent !== "yes") {
-            vconsent = false;
-            $(".consentlbl").addClass("consenterror");
-        } else {
-            $(".consentlbl").removeClass("consenterror");
-        }
-
-        if (vname && vemail && vphone && vgroup && vconsent) {
-
-            sending = true;
-            var ctime = new Date().getTime();
-
-            socket.emit('User:Arrived', {
-                time: ctime,
-                author: author,
-                message: question,
-                chatStatus: chatStatus,
-                type: msgType,
-                wid: wid,
-                sessionId: sessionId,
-                currentPage: currentPage,
-                agentId: aid,
-                role: role,
-                visits: visits,
-                name: name,
-                email: email,
-                phone: phone,
-                agentPhoto: '',
-                group: group,
-                version: '1.1',
-                consent: consent,
-                params: params
-            });
-            $('#form-presales').hide();
-            $('.siButtonActionClose-chat').removeClass('hidden');
-            $('#form-chat-wrap').show();
-            $('#message-area').show();
-            $('#form-chat').show();
-            $('.siButtonActionClose-chat').show();
-            $('#textarea').css({
-                'display': 'table-row'
-            });
-
-            $('#body').css({
-                'height': '251px;'
-            });
-            if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
-                $('#message').focus();
-            } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
-
-            }
-            loadEmoji();
-
-        } else {
-            if ($('#email').is(":visible") && !validEmail(email)) {
-                $('#errorMsg').html("<p class='operator' style='color:red'>" + invalidEmailMessage + "</p>");
-                $('#buffer').css('padding-top', '30px');
-            } else {
-                $('#errorMsg').html("<p class='operator' style='color:red'>" + genericError + "</p>");
-                $('#buffer').css('padding-top', '30px');
-            }
-
-
-        }
-
-    });
+    
 
     $('#btn-close-chat').click(function (e) {
         e.preventDefault();
@@ -1194,13 +1244,7 @@ $(function () {
         document.cookie = name + "=" + value + expires + "; path=/; SameSite=None; Secure;";
     }
 
-    function loadEmoji() {
-        if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
-            $("#btnEmoji").show();
-            $("#btnFile").show();
-
-        }
-    };
+    
 
     function pushl(message) {
         var json = '';
@@ -1370,6 +1414,6 @@ $(function () {
         }
     };
 
-    
+
 
 });
