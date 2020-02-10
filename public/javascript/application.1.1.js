@@ -141,6 +141,8 @@ $(function () {
         var vphone = true;
         var vgroup = true;
         var vconsent = true;
+        var vquesion = true;
+        if (!question || question == 0) vquesion = false;
         if ($('#name').is(":visible") && name.length === 0) vname = false;
         if ($('#email').is(":visible") && email.length === 0) vemail = false;
         if ($('#email').is(":visible") && !validEmail(email)) vemail = false;
@@ -172,7 +174,7 @@ $(function () {
             $(".consentlbl").removeClass("consenterror");
         }
 
-        if (vname && vemail && vphone && vgroup && vconsent) {
+        if (vname && vemail && vphone && vgroup && vconsent && vquesion) {
 
             sending = true;
             var ctime = new Date().getTime();
@@ -240,54 +242,56 @@ $(function () {
         var json = response;
         var date = typeof (json.event_ts) == 'string' ? parseInt(json.event_ts) : json.event_ts;
         if (json.message && json.message.length > 0) {
-            if (json.chatStatus === 'restart') {
-                chatStatus = "notstarted";
-                sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
-                var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">';
-                msg += json.message;
-                msg += '</div></div></div></div><span></span></div>';
+            ap = '/images/material-person-white.png';
+            addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
+            // if (json.chatStatus === 'restart') {
+            //     chatStatus = "notstarted";
+            //     sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
+            //     var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">';
+            //     msg += json.message;
+            //     msg += '</div></div></div></div><span></span></div>';
 
-                var newStatus = status.html() + msg;
-                status.html(newStatus)
-                json.message = '';
+            //     var newStatus = status.html() + msg;
+            //     status.html(newStatus)
+            //     json.message = '';
 
-            } else if (json.chatStatus === 'pushMessages') {
-                if (json.agentId != '') {
-                    status.empty();
-                    if (json.agentPhoto && json.agentPhoto.length > 0) {
-                        ap = json.agentPhoto;
-                        $(".si-img").show();
-                        $("#si-img-img").attr("src", json.agentPhoto);
+            // } else if (json.chatStatus === 'pushMessages') {
+            //     if (json.agentId != '') {
+            //         status.empty();
+            //         if (json.agentPhoto && json.agentPhoto.length > 0) {
+            //             ap = json.agentPhoto;
+            //             $(".si-img").show();
+            //             $("#si-img-img").attr("src", json.agentPhoto);
 
-                    }
-                    $('#agents').show();
-                    $('.agent-name').html(json.author);
-                    $('.agent-role').html(json.role);
+            //         }
+            //         $('#agents').show();
+            //         $('.agent-name').html(json.author);
+            //         $('.agent-role').html(json.role);
 
-                    $(".si-body").height(rsize);
-                    rsize = rsize - 80;;
-                    $('.slimScrollDiv #form-chat').unwrap();
-                    $('.slimScrollBar, .slimScrollRail').remove();
-                    var bh = (rsize - 120) + "px";
-                    $('#form-chat').slimScroll({
-                        height: $('#form-chat').css({
-                            'height': bh
-                        }),
-                        railVisible: true,
-                        start: 'bottom'
-                    });
+            //         $(".si-body").height(rsize);
+            //         rsize = rsize - 80;;
+            //         $('.slimScrollDiv #form-chat').unwrap();
+            //         $('.slimScrollBar, .slimScrollRail').remove();
+            //         var bh = (rsize - 120) + "px";
+            //         $('#form-chat').slimScroll({
+            //             height: $('#form-chat').css({
+            //                 'height': bh
+            //             }),
+            //             railVisible: true,
+            //             start: 'bottom'
+            //         });
 
-                    if (chatStatus == "queued") {
-                        chatStatus = "active";
-                    }
-                }
-                addPushMessages(json.message);
-            } else {
-                if ("close" === json.chatStatus) {
-                    json.author = "";
-                }
-                addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
-            }
+            //         if (chatStatus == "queued") {
+            //             chatStatus = "active";
+            //         }
+            //     }
+            //     addPushMessages(json.message);
+            // } else {
+            //     if ("close" === json.chatStatus) {
+            //         json.author = "";
+            //     }
+            //     addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
+            // }
             if ("agent" == json.type || "" == json.type) {
                 $('#typingIndicator').addClass('hide');
                 //typing=false;

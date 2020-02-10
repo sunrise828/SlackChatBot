@@ -23,7 +23,7 @@ exports.init = async (workspaceId) => {
       });
     
       global.bot[workspaceId].on('message', function(data) {
-        if (data.type != "message" || data.subtype == 'bot_message' || data.subtype == 'channel_joined') {
+        if (data.type != "message" || data.subtype == 'bot_message' || data.subtype == 'channel_join') {
           return;
         }
     
