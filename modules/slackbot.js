@@ -27,8 +27,9 @@ exports.init = async (workspaceId) => {
           return;
         }
 
+        console.log('workspaceId', workspaceId);
         console.log('message received', data);
-    
+        
         const sendData = {
           author: 'Support Man',
           message: data.text,
