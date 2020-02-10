@@ -15,6 +15,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 app.use(expressIp().getIpInfoMiddleware);
 app.use(express.static('./public'));
+
 // Models
 var models = require('./models');
 models.sequelize.sync().then(() => {
