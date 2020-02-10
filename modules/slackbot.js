@@ -9,6 +9,7 @@ const Workspace = require('../models').Workspace;
 const User = require('../models').ChatUser;
 
 exports.init = async (workspaceId) => {
+  console.log(workspaceId, Object.keys(global.bot).indexOf(workspaceId));
   if (Object.keys(global.bot).indexOf(workspaceId) < 0) {
     const workspaces = await Workspace.findAll({serialId: workspaceId});
     if (workspaces.length > 0) {
