@@ -6,7 +6,7 @@ module.exports = (sequelize, DataTypes) => {
     name: DataTypes.STRING,
     sessionId: DataTypes.STRING,
     workspaceId: DataTypes.STRING,
-    question: DataTypes.STRING,
+    queueId: DataTypes.INTEGER,
     channelId: DataTypes.STRING,
     active: {
       type: DataTypes.INTEGER,

@@ -32,7 +32,7 @@ exports.init = async () => {
                 defaults: {
                     channel: newChannel.length > 0 ? newChannel : `customer-${new Date().getTime()}`,
                     workspaceId: data.wid,
-                    question: queId
+                    queueId: queId
                 }
             }).then(async ([user, created]) => {
                 let newUser = await createChannel(user, queName);
