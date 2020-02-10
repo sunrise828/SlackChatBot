@@ -26,6 +26,8 @@ exports.init = async (workspaceId) => {
         if (data.type != "message" || data.subtype == 'bot_message' || data.subtype == 'channel_join') {
           return;
         }
+
+        console.log('message received', data);
     
         const sendData = {
           author: 'Support Man',
