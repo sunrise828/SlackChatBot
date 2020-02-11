@@ -22,6 +22,9 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       defaultValue: 0,
       comment: '0: opening, 1: finished'
+    },
+    webPage: {
+      type: DataTypes.STRING
     }
 
   }, {});

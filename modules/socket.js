@@ -32,7 +32,8 @@ exports.init = async () => {
                 defaults: {
                     channel: newChannel.length > 0 ? newChannel : `customer-${new Date().getTime()}`,
                     workspaceId: data.wid,
-                    status: 0
+                    status: 0,
+                    webPage: data.currentPage
                 }
             }).then(async ([user, created]) => {
                 if (user.status > 0) {
@@ -122,7 +123,7 @@ function createChannel(user, queName) {
                         channel: user.channelId,
                         attachments: [{
                             pretext: 'Visitor Information',
-                            text: `Name: ${user.name} \n Email: ${user.email}\n Page: helloworld.com `
+                            text: `Name: ${user.name} \n Email: ${user.email}\n Page: ${user.webPage} `
                         }]
                     });
                 } else {
@@ -221,7 +222,7 @@ async function roomInit(socket, user) {
             text: `${plainUser.name} started the conversation on <#${plainUser.channelId}|${plainUser.channel}>.`,
             attachments: [{
                 "pretext": "Visitor Information",
-                "text": "Name: "+ plainUser.name + "\n Email: "+ plainUser.email + "\nPage: helloworld.com"
+                "text": "Name: "+ plainUser.name + "\n Email: "+ plainUser.email + "\nPage: " + plainUser.webPage
             }]
         });
     });
