@@ -39,7 +39,7 @@ exports.init = async () => {
                 const plainUser = user.get({ plain: true });
                 socket.join(plainUser.channelId);
                 roomInit(socket, user);
-                emitOverChannel('Room:Created', {
+                emitToSocketId(plainUser.channelId, 'Room:Created', {
                     sessionId: plainUser.sessionId,
                     channel: plainUser.channelId,
                     id: plainUser.id
