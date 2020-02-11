@@ -1,6 +1,7 @@
 const UserController = require('../controllers').user;
 const slackbot = require('./slackbot');
 const History = require('../models').History;
+const User = require('../models').ChatUser;
 
 function emitToSocketId(socketId, eventName, data) {
     console.log(`Emit ${eventName}`, socketId, data);
@@ -16,35 +17,61 @@ exports.emitOverChannel = emitOverChannel;
 
 exports.init = async () => {
     global.io.on('connection', async (socket) => {
-        const query = socket.request._query;
-        const channelName = query.address;
         socket.on("User:Arrived", async function (data) {
             const queIndex = data.message.indexOf('-');
             const queId = Number(data.message.substr(0, queIndex));
             const queName = data.message.substr(queIndex + 1);
-            const newChannel = await UserController.getNewChannel(channelName);
+            const newChannel = await UserController.getNewChannel(data.name, queName);
             UserController.findOrCreate({
                 where: {
                     email: data.email,
                     name: data.name,
-                    sessionId: data.sessionId
+                    sessionId: data.sessionId,
+                    queueId: queId
                 },
                 defaults: {
                     channel: newChannel.length > 0 ? newChannel : `customer-${new Date().getTime()}`,
                     workspaceId: data.wid,
-                    queueId: queId
+                    status: 0
                 }
             }).then(async ([user, created]) => {
-                let newUser = await createChannel(user, queName);
-                const plainUser = user.get({ plain: true });
-                socket.join(plainUser.channelId);
-                roomInit(socket, user);
-                emitToSocketId(plainUser.channelId, 'Room:Created', {
-                    sessionId: plainUser.sessionId,
-                    channel: plainUser.channelId,
-                    id: plainUser.id
-                })
-
+                if (user.status > 0) {
+                    socket.join(user.channelId);
+                    const histories = await History.findAll({
+                        where: {
+                            channel: user.channelId
+                        },
+                        order: [
+                            'createdAt'
+                        ]
+                    });
+            
+                    const latest = histories.map(history => ({
+                        text: history.text,
+                        domain: history.domain,
+                        createdAt: history.createdAt
+                    }));
+            
+                    if (global.clientTimers[user.channelId]) {
+                        clearTimeout(global.clientTimers[user.channelId]);
+                        global.clientTimers[user.channelId] = null;
+                    }
+                    return emitToSocketId(user.channelId, 'Histories', {
+                        status: 'finished',
+                        msgs: latest
+                    });
+                } else {
+                    let newUser = await createChannel(user, queName);
+                    const plainUser = newUser.get({ plain: true });
+                    socket.join(plainUser.channelId);
+                    roomInit(socket, newUser);
+                    emitToSocketId(plainUser.channelId, 'Room:Created', {
+                        sessionId: plainUser.sessionId,
+                        channel: plainUser.channelId,
+                        id: plainUser.id
+                    });
+                }
+                
             }).catch(err => {
                 console.error('error occured while adding user', err);
                 // socket.emit('')
@@ -65,11 +92,11 @@ function createChannel(user, queName) {
                     let curName = plainUser.channel.split('_');
                     curName = curName.slice(0, curName.length - 1);
                     const channels = listRes.channels.sort((a, b) => (b.created - a.created));
-                    const lists= channels.filter(ch => (ch.name.indexOf(curName.join('_') >= 0)));
-                    const curIndex = lists.findIndex(ch => (ch.name == plainUser.channel));
-                    if (curIndex >= 0) {
-                        const pre = lists[0].name.split('_');
-                        user.channel = curName.join('_') + '_' + (Number(pre[pre.length - 1]) + 1);
+                    const seed = curName.join('_');
+                    const lists= channels.filter(ch => (ch.name.indexOf(seed) == 0));
+                    const cname = getChannel(lists, plainUser.channel);
+                    if (cname && cname.length > 0) {
+                        user.channel = cname;
                         user.save();
                     }
                 }
@@ -92,7 +119,12 @@ function createChannel(user, queName) {
                     const broadMessage = `Chat starting in <#${plainUser.channelId}|${plainUser.channel}>.\n${plainUser.name} sent first message for queue "${queName}" to <#${plainUser.channelId}|${plainUser.channel}>`;
                     await web.chat.postMessage({
                         text: broadMessage,
-                        channel: user.channelId});
+                        channel: user.channelId,
+                        attachments: [{
+                            pretext: 'Visitor Information',
+                            text: `Name: ${user.name} \n Email: ${user.email}\n Page: helloworld.com `
+                        }]
+                    });
                 } else {
                     console.error('error of creating channel:', res.data.error);
                 }
@@ -141,22 +173,62 @@ function createChannel(user, queName) {
     });
 }
 
-function roomInit(socket, user) {
+function getChannel (lists, cname) {
+    let curName = cname.split('_');
+    curName = curName.slice(0, curName.length - 1);
+    const curIndex = lists.findIndex(ch => (ch.name == cname));
+    if (curIndex > -1) {
+        const pre = lists[curIndex].name.split('_');
+        cname = curName.join('_') + '_' + (Number(pre[pre.length - 1]) + 1);
+        return getChannel(lists, cname);
+    } else {
+        return cname;
+    }
+}
+
+async function roomInit(socket, user) {
     const plainUser = user.get({ plain: true });
     const roomId = plainUser.channelId;
+
+    if (global.clientTimers[roomId]) {
+        const histories = await History.findAll({
+            where: {
+                channel: user.channelId
+            },
+            order: [
+                'createdAt'
+            ]
+        });
+
+        const latest = histories.map(history => ({
+            text: history.text,
+            domain: history.domain,
+            createdAt: history.createdAt
+        }));
+
+        clearTimeout(global.clientTimers[user.channelId]);
+        global.clientTimers[user.channelId] = null;
+                    
+        emitToSocketId(user.channelId, 'Histories', {
+            status: 'openning',
+            msgs: latest
+        });
+    }
     socket.in(`${roomId}`).on('Joined:Room', async () => {
         // emitToSocketId(plainUser.channel, 'Error', 'Invalid Workspace Id');
         await global.slackWeb[plainUser.workspaceId].chat.postMessage({
             channel: 'stp',
-            text: `${plainUser.name} started the conversation on <#${plainUser.channelId}|${plainUser.channel}>.`
+            text: `${plainUser.name} started the conversation on <#${plainUser.channelId}|${plainUser.channel}>.`,
+            attachments: [{
+                "pretext": "Visitor Information",
+                "text": "Name: "+ plainUser.name + "\n Email: "+ plainUser.email + "\nPage: helloworld.com"
+            }]
         });
     });
 
     socket.in(`${roomId}`).on('Message', async (message) => {
         const history = await History.create({
             text: message.message,
-            from: plainUser.id,
-            to: plainUser.channelId,
             channel: roomId,
             domain: 'user'
         });
@@ -171,5 +243,41 @@ function roomInit(socket, user) {
         } else {
             console.log('error message to slack', res);
         }
-    })
+    });
+
+    socket.in(`${roomId}`).on('Finished', async (message) => {
+        const user = await User.findOne({
+            where: {
+                channelId: roomId
+            }
+        });
+
+        if (user) {
+            user.status = 1;
+            await user.save();
+            await global.slackWeb[user.workspaceId].chat.postMessage({
+                channel: user.channelId,
+                text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
+            });
+        }
+    });
+
+    socket.in(`${roomId}`).on('disconnect', async (message) => {
+        global.clientTimers[roomId] = setTimeout(async () => {
+            const user = await User.findOne({
+                where: {
+                    channelId: roomId
+                }
+            });
+            if (user) {
+                user.status = 1;
+                await user.save();
+
+                await global.slackWeb[user.workspaceId].chat.postMessage({
+                    channel: user.channelId,
+                    text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
+                });
+            }
+        }, 4 * 60 * 1000);
+    });
 }

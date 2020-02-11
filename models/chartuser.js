@@ -16,7 +16,13 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
-    slackId: DataTypes.STRING
+    slackId: DataTypes.STRING,
+    ticketId: DataTypes.STRING,
+    status: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      comment: '0: opening, 1: finished'
+    }
 
   }, {});
   User.associate = function(models) {

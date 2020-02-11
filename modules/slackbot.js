@@ -7,6 +7,7 @@ const _ = require('lodash');
 const env = process.env.NODE_ENV || 'development';
 const Workspace = require('../models').Workspace;
 const User = require('../models').ChatUser;
+const History = require('../models').History;
 
 exports.init = async (workspaceId) => {
   console.log(workspaceId, Object.keys(global.bot).indexOf(workspaceId));
@@ -23,14 +24,18 @@ exports.init = async (workspaceId) => {
         console.info('============= bot started ===================');
       });
     
-      global.bot[workspaceId].on('message', function(data) {
-        if (data.type != "message" || data.subtype == 'bot_message' || data.subtype == 'channel_join') {
+      global.bot[workspaceId].on('message', async function(data) {
+        if (data.type != "message" || data.subtype) {
           return;
         }
 
-        console.log('workspaceId', workspaceId);
-        console.log('message received', data);
-        
+        const history = await History.create({
+          text: data.text,
+          channel: data.channel,
+          domain: 'slack',
+          sent: 1 
+        });
+
         const sendData = {
           author: 'Support Man',
           message: data.text,
@@ -43,7 +48,7 @@ exports.init = async (workspaceId) => {
 
       global.bot[workspaceId].on('member_joined_channel', async function(event) {
         // Add the subscription
-        if (event.user == workspaces[0].botUserId) {
+        if (event.user == workspaces[0].botUserId || event.user == workspaces[0].userId) {
           return;
         }
         const chatUsers = await User.findAll({
@@ -107,6 +112,30 @@ exports.init = async (workspaceId) => {
         }
       });
 
+      global.bot[workspaceId].on('member_left_channel', async function(event) {
+        if (event.user == workspaces[0].botUserId || event.user == workspaces[0].userId) {
+          return;
+        }
+
+        const user = await User.findOne({
+          where: {
+            channelId: event.channel
+          }
+        });
+
+        if (user) {
+          let slackUsers = [];
+          if (user.slackId) slackUsers = user.slackId.split(',');
+          let newUsers = slackUsers.filter(id => (id != event.user));
+          newUsers = _.uniq(newUsers);
+          user.slackId = newUsers.join(',');
+          await user.save();
+          if (newUsers.length < 1) {
+            global.timers[event.channel] = setTimeout(noSupport, 4 * 60 * 1000, event.channel);
+          }
+        }
+      })
+
       await global.bot[workspaceId].start();
 
       async function addPresenceSubscriptions(workspaceId, userIds) {
@@ -116,7 +145,8 @@ exports.init = async (workspaceId) => {
           const users = await global.slackWeb[workspaceId].users.list();
           if (users.ok) {
             const members = users.members.map(member => (member.id));
-            await global.bot[workspaceId].subscribePresence(members);  
+            const lastMembers = members.filter(member => ([workspaces[0].botUserId, workspaces[0].userId].indexOf(member) < 0));
+            await global.bot[workspaceId].subscribePresence(lastMembers);
           }
         }
       }
@@ -136,6 +166,8 @@ async function noSupport(channelId) {
   let slackUsers = [];
   if (user.slackId) slackUsers = user.slackId.split(',');
   if (slackUsers.length <= 0) {
+    user.status = 1;
+    await user.save();
     socket.emitToSocketId(channelId, 'NoSupport');
   }
   clearTimeout(global.timers[channelId]);

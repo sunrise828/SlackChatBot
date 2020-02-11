@@ -28,6 +28,7 @@
             'chatUrl': '/',
             'wid': 'g5SdlOzjCpVpdA7z500sgwaYV20rH8',
             'acct': '2c9fa5636fc030b5016fc572365203a1',
+            'clientPage': 'testrtp.com/client-page',
             'defaultVisitorText': 'Visitor',
             'endMessage': 'Your chat has been closed.',
             'startNewMessage': 'Start new chat',
@@ -39,10 +40,9 @@
             'cp': 'https://new.nungar.com.au/slack.html',
             'visits': '1',
             'widgetTitle': 'Live Chat',
-            'm': '0',
-            'clientAddress': 'log_angels_ca'
+            'm': '0'
         };
-        setInterval(function () { $.get('/keepAlive.jsp'); }, 8 * 60000); 
+        
     </script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/socket.io-client@2/dist/socket.io.js"></script>
     <script type="text/javascript" src="./javascript/application.1.1.js"></script>
@@ -88,10 +88,7 @@
                                 <div id="confirm-close-chat">
                                     <p>Do you want to close your chat?</p>
                                     <p class="actions" style="padding:5px;">
-                                        <button class="btn btn-success" id="btn-minimize-chat" type="button">Minimize
-                                            Window</button>
                                         <button class="btn" id="btn-close-chat" type="button">Close Chat</button>
-                                        <button class="btn" id="btn-send-transcript-form" type="button">Send Transcript</button>
                                         <button class="btn btn-success" id="btn-continue-chat" type="button">Cancel</button>
                                     </p>
                                 </div>
@@ -318,18 +315,7 @@
                 $('.msgArea').emojiPicker('toggle');
             });
         });
-        var sessionId = sessionStorage.getItem("si_chatsid_2c9fa5636fc030b5016fc574803803a7");
-        if (sessionId && sessionId.length > 0) {
-            $("#sessionId").val(sessionId);
-        }
-        else {
-            setTimeout(function () {
-                var sessionId = sessionStorage.getItem("si_chatsid_2c9fa5636fc030b5016fc574803803a7");
-                if (sessionId && sessionId.length > 0) {
-                    $("#sessionId").val(sessionId);
-                }
-            }, 1500)
-        }
+        
     </script>
 </body>
 

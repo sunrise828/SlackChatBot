@@ -40,6 +40,7 @@ const server = http.createServer(app);
 
 //socket init
 global.timers = {};
+global.clientTimers = {};
 global.bot = {};
 global.slackWeb = {};
 global.io = require('socket.io').listen(server);

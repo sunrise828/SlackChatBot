@@ -42,46 +42,56 @@ $(function () {
     var resetSocketInterval = 10 * 60000;
     var userId = null;
     init();
-    var socket = io(chatUrl, { query: 'address=' + chatwidget_vars.clientAddress });
+    var socket = io(chatUrl);
     socketInit();
     
     var sessionId = "";
     try {
-        sessionId = sessionStorage.getItem("si_chatsid_" + wid);
+        sessionId = localStorage.getItem("rtp_chatsid_" + wid);
         if (!sessionId || sessionId.length === 0) {
             sessionId = guid();
-            sessionStorage.setItem("si_chatsid_" + wid, sessionId);
-            chatStatus = sessionStorage.getItem("si_chatstatus_" + wid);
+            localStorage.setItem("rtp_chatsid_" + wid, sessionId);
+            chatStatus = localStorage.getItem("rtp_chatstatus_" + wid);
             if (!chatStatus || chatStatus.length === 0) {
                 chatStatus = "notstarted";
-                sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
+                localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             }
         } else {
             //existing chat
-            chatStatus = sessionStorage.getItem("si_chatstatus_" + wid);
-            if (!chatStatus || chatStatus.length === 0) {
-                chatStatus = "notstarted";
-                sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
-                //refresh=true;
-            } else {
-                refresh = true;
-            }
+            // chatStatus = "history";
+            refresh = true;
         }
     } catch (err) {
         sessionId = guid();
     }
 
+    if ("notstarted" !== chatStatus) {
+        newSubscribe();
+        $('#form-presales').hide();
+        $('.siButtonActionClose-chat').removeClass('hidden');
+        $('#form-chat-wrap').show();
+        $('#message-area').show();
+
+        $('#form-chat').show();
+        $('#textarea').css({
+            'display': 'table-row'
+        });
+
+        if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
+            $('#message').focus();
+        } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
+            $('#message').addClass('message_ios');
+        }
+        loadEmoji();
+    }
+
     function init() {
-        var siName = sessionStorage.getItem("si_name");
+        var siName = localStorage.getItem("rtp_name");
         if (siName && siName.length > 0) { $("#name").val(siName); }
-        var siEmail = sessionStorage.getItem("si_email");
+        var siEmail = localStorage.getItem("rtp_email");
         if (siEmail && siEmail.length > 0) { $("#email").val(siEmail); }
-        var siPhone = sessionStorage.getItem("si_phone");
-        if (siPhone && siPhone.length > 0) { $("#phone").val(siPhone); }
-        var siGroup = sessionStorage.getItem("si_group");
-        if (siGroup && siGroup.length > 0) { $("#group").val(siGroup); }
-        var siParams = sessionStorage.getItem("si_params");
-        if (siParams && siParams.length > 0) { $("#params").val(siParams); }
+        var siQuestion = localStorage.getItem("rtp_question");
+        if (siQuestion && siQuestion.length > 0) { $("#question").val(siQuestion); }
         $('.slim-scroll').slimScroll({
             height: chatwidget_vars.widgetHeight - 120,
             railVisible: true,
@@ -113,53 +123,36 @@ $(function () {
                 $viewportMeta.attr('content', 'width=device-width,initial-scale=1,maximum-scale=' + (event.type == 'blur' ? 10 : 1));
             });
         }
+
+        var flag = true;
+        flag = flag && (siName && siName.length > 0);
+        flag = flag && (siEmail && siEmail.length > 0);
+        flag = flag && (siQuestion && siQuestion.length > 0);
+        if (flag) {
+            chatStatus = 'History';
+            
+        } else {
+            chatStatus = 'notstarted';
+        }
     }
 
     $('#preSalesStart').click(function (event) {
         refresh = false;
-        newSubscribe();
-        var offline = $('#offline').val();
         var name = $('#name').val();
         var email = $('#email').val();
-        var phone = $('#phone').val();
-        var custom = $('#custom').val();
-        var params = $('#params').val();
-        var consent = "";
-        if ($('#consent').is(':checked')) {
-            consent = "yes";
-        }
         var question = $('#question').val();
-        var group = $('#group').val();
-        sessionStorage.setItem("si_name", name);
-        sessionStorage.setItem("si_email", email);
-        sessionStorage.setItem("si_phone", phone);
-        sessionStorage.setItem("si_group", group);
-        sessionStorage.setItem("si_consent", consent);
-        sessionStorage.setItem("si_question", question);
+        sessionId = guid();
+        localStorage.setItem("rtp_name", name);
+        localStorage.setItem("rtp_email", email);
+        localStorage.setItem("rtp_question", question);
+        localStorage.setItem("rtp_chatsid_" + wid, sessionId);
         var vname = true;
         var vemail = true;
-        var vphone = true;
-        var vgroup = true;
-        var vconsent = true;
         var vquesion = true;
         if (!question || question == 0) vquesion = false;
         if ($('#name').is(":visible") && name.length === 0) vname = false;
         if ($('#email').is(":visible") && email.length === 0) vemail = false;
         if ($('#email').is(":visible") && !validEmail(email)) vemail = false;
-
-        if ($('#phone').is(":visible")) {
-            var phonePH = $('#phone').attr('placeholder');
-            if (phonePH.indexOf('*') >= 0 && phone.length === 0) {
-                vphone = false;
-            }
-        }
-
-        if ($('#group').is(":visible")) {
-            var groupPH = $("#group option:selected").text();
-            if (groupPH.indexOf('*') >= 0 && (group == null || group.length === 0)) {
-                vgroup = false;
-            }
-        }
 
         if (invalidEmailMessage.length === 0) vemail = true;
         if (genericError.length === 0) {
@@ -167,14 +160,8 @@ $(function () {
             vphone = true;
             vgroup = true;
         }
-        if ($('#consent').is(":visible") && consent !== "yes") {
-            vconsent = false;
-            $(".consentlbl").addClass("consenterror");
-        } else {
-            $(".consentlbl").removeClass("consenterror");
-        }
-
-        if (vname && vemail && vphone && vgroup && vconsent && vquesion) {
+        
+        if (vname && vemail && vquesion) {
 
             sending = true;
             var ctime = new Date().getTime();
@@ -183,25 +170,15 @@ $(function () {
                 time: ctime,
                 author: author,
                 message: question,
-                chatStatus: chatStatus,
-                type: msgType,
                 wid: wid,
                 sessionId: sessionId,
                 currentPage: currentPage,
-                agentId: aid,
-                role: role,
-                visits: visits,
                 name: name,
-                email: email,
-                phone: phone,
-                agentPhoto: '',
-                group: group,
-                version: '1.1',
-                consent: consent,
-                params: params
+                email: email
             });
             $('#form-presales').hide();
-            $('.siButtonActionClose-chat').removeClass('hidden');
+            // $('.siButtonActionClose-chat').removeClass('hidden');
+            $("#chatContent").html('');
             $('#form-chat-wrap').show();
             $('#message-area').show();
             $('#form-chat').show();
@@ -219,7 +196,6 @@ $(function () {
 
             }
             loadEmoji();
-
         } else {
             if ($('#email').is(":visible") && !validEmail(email)) {
                 $('#errorMsg').html("<p class='operator' style='color:red'>" + invalidEmailMessage + "</p>");
@@ -244,71 +220,20 @@ $(function () {
         if (json.message && json.message.length > 0) {
             ap = '/images/material-person-white.png';
             addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
-            // if (json.chatStatus === 'restart') {
-            //     chatStatus = "notstarted";
-            //     sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
-            //     var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">';
-            //     msg += json.message;
-            //     msg += '</div></div></div></div><span></span></div>';
-
-            //     var newStatus = status.html() + msg;
-            //     status.html(newStatus)
-            //     json.message = '';
-
-            // } else if (json.chatStatus === 'pushMessages') {
-            //     if (json.agentId != '') {
-            //         status.empty();
-            //         if (json.agentPhoto && json.agentPhoto.length > 0) {
-            //             ap = json.agentPhoto;
-            //             $(".si-img").show();
-            //             $("#si-img-img").attr("src", json.agentPhoto);
-
-            //         }
-            //         $('#agents').show();
-            //         $('.agent-name').html(json.author);
-            //         $('.agent-role').html(json.role);
-
-            //         $(".si-body").height(rsize);
-            //         rsize = rsize - 80;;
-            //         $('.slimScrollDiv #form-chat').unwrap();
-            //         $('.slimScrollBar, .slimScrollRail').remove();
-            //         var bh = (rsize - 120) + "px";
-            //         $('#form-chat').slimScroll({
-            //             height: $('#form-chat').css({
-            //                 'height': bh
-            //             }),
-            //             railVisible: true,
-            //             start: 'bottom'
-            //         });
-
-            //         if (chatStatus == "queued") {
-            //             chatStatus = "active";
-            //         }
-            //     }
-            //     addPushMessages(json.message);
-            // } else {
-            //     if ("close" === json.chatStatus) {
-            //         json.author = "";
-            //     }
-            //     addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
-            // }
-            if ("agent" == json.type || "" == json.type) {
-                $('#typingIndicator').addClass('hide');
-                //typing=false;
-            }
-
         }
         if (!isCWActive && !refresh && json.chatStatus != '' && json.chatStatus != 'ctyping' && json.chatStatus != 'ctypingoff' && json.chatStatus != 'atyping' && json.chatStatus != 'atypingoff') {
             play_sound();
         } else if (refresh) {
             refresh = false;
         }
+        // setNoResponseTimer();
     };
 
     function socketInit() {
         socket.on('Room:Created', function (data) {
             userId = data.id;
             socket.emit('Joined:Room');
+            setNoResponseTimer();
         });
 
         socket.on('Message', function (data) {
@@ -317,11 +242,61 @@ $(function () {
         });
 
         socket.on('NoSupport', function() {
-            var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment-wrapper-admin-img"><div class="si-img"><img data-name="' + widgetTitle + '" class="initials img-circle"/></div></div><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">'
-            msg += "Currently we're unavailable! Please wait!";
+            if (typingTimer) {
+                clearTimeout(typingTimer);
+                typingTimer = null;
+            }
+            
+            var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment-wrapper-admin-img"><div class="si-img"><img src="/images/logo-white.png" class="initials img-circle"/></div></div><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">'
+            msg += chatwidget_vars.timeoutMessage;
             msg += '</div></div></div></div><span></span></div>';
             chatContent.append(msg);
-            $('#message').attr('disabled', true);
+            chatClosed();
+        });
+
+        socket.on('Histories', function(event) {
+            if (event.msgs.length > 0) {
+                event.msgs.forEach(msg => {
+                    if (msg.domain == 'slack') {
+                        addMessage('Support Man', msg.text, new Date(msg.createdAt), 
+                        '', '/images/material-person-white.png', 'queue');
+                    } else {
+                        var myMsg = {
+                            time: new Date(msg.createdAt).getTime(),
+                            author: author,
+                            message: msg.text,
+                            chatStatus: 'queue',
+                            type: msgType,
+                            wid: wid,
+                            sessionId: sessionId,
+                            currentPage: currentPage,
+                            agentId: aid,
+                            role: role,
+                            visits: visits,
+                            name: localStorage.getItem("rtp_name"),
+                            email: localStorage.getItem("rtp_email"),
+                            phone: localStorage.getItem("rtp_phone"),
+                            agentPhoto: '',
+                            group: localStorage.getItem("rtp_group"),
+                            version: '1.1',
+                            consent: sessionStorage.getItem("rtp_consent"),
+                            params: sessionStorage.getItem("rtp_params")
+                        };
+                        pushl(JSON.stringify(myMsg));
+                    }
+                })
+            }
+
+            if (event.status == 'finished') {
+                addMessage('System', "This conversation is finished. Please open new!", new Date(), 
+                    '', '/images/logo-white.png', 'close');
+                chatClosed();
+                    if (typingTimer) {
+                    clearTimeout(typingTimer);
+                    typingTimer = null;
+                }
+                
+            }
         })
     };
 
@@ -344,14 +319,14 @@ $(function () {
                     agentId: aid,
                     role: role,
                     visits: visits,
-                    name: sessionStorage.getItem("si_name"),
-                    email: sessionStorage.getItem("si_email"),
-                    phone: sessionStorage.getItem("si_phone"),
+                    name: localStorage.getItem("rtp_name"),
+                    email: localStorage.getItem("rtp_email"),
+                    phone: localStorage.getItem("rtp_phone"),
                     agentPhoto: '',
-                    group: sessionStorage.getItem("si_group"),
+                    group: localStorage.getItem("rtp_group"),
                     version: '1.1',
-                    consent: sessionStorage.getItem("si_consent"),
-                    params: sessionStorage.getItem("si_params")
+                    consent: sessionStorage.getItem("rtp_consent"),
+                    params: sessionStorage.getItem("rtp_params")
                 };
                 pushl(JSON.stringify(msg));
                 socket.emit('Message', msg);
@@ -360,80 +335,31 @@ $(function () {
             try {
                 $('.msgArea').emojiPicker('hide');
             } catch (err) { }
-        } else if (!typing) {
-            if (!typingTimer) {
-                // typingTimer = setTimeout(function () {
-                //     var msg = $('#message').val();
-                //     if (msg.length > 0 && !typing) {
-                //         setTyping();
-                //         var cs = "ctyping";
-                //         sending = true;
-                //         var ctime = new Date().getTime();
-                //         subSocket.push(atmosphere.util.stringifyJSON({
-                //             time: ctime,
-                //             author: author,
-                //             message: "",
-                //             chatStatus: cs,
-                //             type: msgType,
-                //             wid: wid,
-                //             sessionId: sessionId,
-                //             currentPage: currentPage,
-                //             agentId: aid,
-                //             role: role,
-                //             visits: visits,
-                //             name: sessionStorage.getItem("si_name"),
-                //             email: sessionStorage.getItem("si_email"),
-                //             phone: sessionStorage.getItem("si_phone"),
-                //             agentPhoto: '',
-                //             group: sessionStorage.getItem("si_group"),
-                //             version: '1.1',
-                //             consent: sessionStorage.getItem("si_consent"),
-                //             params: sessionStorage.getItem("si_params")
-                //         }));
-                //     } else {
-                //         clearTyping();
-                //     }
-                // }, 6000);
-            }
-        } else if (typing) {
-            if (!typingTimer) {
-                // typingTimer = setTimeout(function () {
-                //     var msg = $('#message').val();
-                //     if (msg.length == 0) {
-                //         var cs = "ctypingoff";
-                //         typing = false;
-                //         sending = true;
-                //         clearTyping();
-                //         var ctime = new Date().getTime();
-                //         subSocket.push(atmosphere.util.stringifyJSON({
-                //             time: ctime,
-                //             author: author,
-                //             message: "",
-                //             chatStatus: cs,
-                //             type: msgType,
-                //             wid: wid,
-                //             sessionId: sessionId,
-                //             currentPage: currentPage,
-                //             agentId: aid,
-                //             role: role,
-                //             visits: visits,
-                //             name: sessionStorage.getItem("si_name"),
-                //             email: sessionStorage.getItem("si_email"),
-                //             phone: sessionStorage.getItem("si_phone"),
-                //             agentPhoto: '',
-                //             group: sessionStorage.getItem("si_group"),
-                //             version: '1.1',
-                //             consent: sessionStorage.getItem("si_consent"),
-                //             params: sessionStorage.getItem("si_params")
-                //         }));
-                //     } else {
-                //         clearTyping();
-                //     }
-                // }, 2500);
-            }
         }
-
+        setNoResponseTimer();
     });
+
+    function setNoResponseTimer() {
+        if (typingTimer) clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            const message = "We haven't here from you in some time. Are you still with us?\n"
+                + "Please respond if you are still there";
+
+            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '2minAlert');
+            typingTimer = setTimeout(() => {
+                const message = "We are going to have to end this chat if we dont' hear from you."
+                    + "We will hae to end this chat in 1 minute.";
+                addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '3minAlert');
+                typingTimer = setTimeout(() => {
+                    // finish the chat;
+                    const message = "Thanks for using our system. This chat is timeout.";
+                    addMessage('System', message, new Date(), 'admin', './images/logo-white.png', 'finished');
+                    socket.emit('Finished');
+                    chatClosed();
+                }, 60 * 1000);
+            }, 60 * 1000);
+        }, 2 * 60 * 1000);
+    }
 
     function setTyping() {
         clearTyping();
@@ -453,19 +379,17 @@ $(function () {
     }
 
     function newSubscribe() {
-        // if (!subSocket)
-        // {
-        //     subSocket = socket.subscribe(request);
-        // }
-        // if (refresh)
-        // {
-        //     //status.empty();
-        //     setTimeout(function (){
-        //         var ctime=new Date().getTime();
-        //         subSocket.push(atmosphere.util.stringifyJSON({ time:ctime,author: author, message: '',chatStatus:'refresh',type:msgType,wid:wid,sessionId:sessionId,currentPage:currentPage,agentId:aid,role:role,visits:visits,name:sessionStorage.getItem("si_name"),email:sessionStorage.getItem("si_email"),phone:sessionStorage.getItem("si_phone"),agentPhoto:'',group:sessionStorage.getItem("si_group"),version:'1.1',consent:sessionStorage.getItem("si_consent"),params:sessionStorage.getItem("si_params")    }));
-
-        //     }, 50);
-        // }
+        var siName = localStorage.getItem("rtp_name");
+        var siEmail = localStorage.getItem("rtp_email");
+        var siQuestion = localStorage.getItem("rtp_question");
+        socket.emit('User:Arrived', {
+            message: siQuestion,
+            wid: wid,
+            sessionId: sessionId,
+            currentPage: currentPage,
+            name: siName,
+            email: siEmail
+        });
     }
     $('#nops').click(function (event) {
 
@@ -504,11 +428,11 @@ $(function () {
         var consent = "";
         var params = "";
         newSubscribe();
-        var name = sessionStorage.getItem("si_name");
-        var email = sessionStorage.getItem("si_email");
-        var phone = sessionStorage.getItem("si_phone");
-        var group = sessionStorage.getItem("si_group");
-        var params = sessionStorage.getItem("si_params");
+        var name = sessionStorage.getItem("rtp_name");
+        var email = sessionStorage.getItem("rtp_email");
+        var phone = sessionStorage.getItem("rtp_phone");
+        var group = sessionStorage.getItem("rtp_group");
+        var params = sessionStorage.getItem("rtp_params");
 
         var vname = true;
         var vemail = true;
@@ -619,86 +543,25 @@ $(function () {
         }
 
     });
-    $(document).on('click', '[id^=quick-reply]', function (e) {
-        var replyVal = $(this).data("reply");
-        e.preventDefault();
-        e.stopPropagation();
-        var ctime = new Date().getTime();
-
-        subSocket.push(atmosphere.util.stringifyJSON({
-            time: ctime,
-            author: author,
-            message: replyVal,
-            chatStatus: chatStatus,
-            type: msgType,
-            wid: wid,
-            sessionId: sessionId,
-            currentPage: currentPage,
-            agentId: aid,
-            role: role,
-            visits: visits,
-            name: sessionStorage.getItem("si_name"),
-            email: sessionStorage.getItem("si_email"),
-            phone: sessionStorage.getItem("si_phone"),
-            agentPhoto: '',
-            group: sessionStorage.getItem("si_group"),
-            version: '1.1',
-            consent: sessionStorage.getItem("si_consent"),
-            params: sessionStorage.getItem("si_params")
-        }));
-        sending = true;
-        $("#message").val('').focus();
-        try {
-            $('.msgArea').emojiPicker('hide');
-        } catch (err) { }
-
-    });
-
-    
-
     $('#btn-close-chat').click(function (e) {
         e.preventDefault();
         e.stopPropagation();
-        $('#form-chat-wrap').show();
-        $('#message-area').show();
-
-        $('#form-chat').show();
-        $('#form-close-chat').hide();
-        chatStatus = "close";
-        var msg = "";
-        $('#textarea-wrapper').hide();
-        sending = true;
-        var ctime = new Date().getTime();
-
-        subSocket.push(atmosphere.util.stringifyJSON({
-            time: ctime,
-            author: author,
-            message: endMessage,
-            chatStatus: chatStatus,
-            type: msgType,
-            wid: wid,
-            sessionId: sessionId,
-            currentPage: currentPage,
-            agentId: aid,
-            role: role,
-            visits: visits,
-            name: '',
-            email: '',
-            phone: '',
-            agentPhoto: '',
-            group: '',
-            version: '1.1'
-        }));
-        setTimeout(function () {
-            chatStatus = "notstarted";
-            sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
-        }, 250);
+        socket.emit('Finished');
+        localStorage.clear();
+        sessionId = guid();
+        localStorage.setItem('rtp_chatsid_' + wid, sessionId);
+        $('#form-close-chat').hide()
+        $('#form-presales').show();
+        $('#form-chat-wrap').hide();
+        $('#message-area').hide();
+        $('#form-chat').hide();
+        $('.siButtonActionClose-chat').show();
     });
 
     $('#btn-continue-chat').click(function (e) {
         e.preventDefault();
         e.stopPropagation();
-
+        $('#form-presales').hide();
         if ($('#form-offline-sent').is(":visible")) {
             $('#form-close-chat').hide();
         } else {
@@ -726,7 +589,7 @@ $(function () {
 
     });
 
-    if (/iPhone|iPod|Android/.test(window.navigator.userAgent) || "1" == sessionStorage.getItem("standalone")) {
+    // if (/iPhone|iPod|Android/.test(window.navigator.userAgent) || "1" == sessionStorage.getItem("standalone")) {
         $('.siButtonActionClose-chat').click(function (e) {
             if ("notstarted" !== chatStatus) {
                 e.preventDefault();
@@ -738,136 +601,7 @@ $(function () {
             }
 
         });
-    }
-
-
-    $('.siBtnSendTranscript').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $('#form-chat-wrap').hide();
-        $('#message-area').hide();
-
-        $('#form-chat').hide();
-        $('#form-send-transcript').show();
-        $('#form-close-chat').hide();
-        var email = $('#email').val();
-        if (email && email.length > 0) {
-            $('#emailAddress').val(email);
-        }
-
-    });
-    $('#btn-transcript-continue-chat').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $('#form-chat-wrap').show();
-        $('#message-area').show();
-
-        $('#form-chat').show();
-        $('#form-close-chat').hide();
-        $('#form-feedback').hide();
-        $('#form-send-transcript').hide();
-
-    });
-    $('#btn-feedback-continue-chat').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $('#form-chat-wrap').show();
-        $('#message-area').show();
-
-        $('#form-chat').show();
-        $('#form-close-chat').hide();
-        $('#form-feedback').hide();
-        $('#form-send-transcript').hide();
-
-    });
-    $('#btn-send-transcript-form').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $('#form-chat-wrap').hide();
-        $('#message-area').hide();
-        $('#form-chat').hide();
-        $('#form-close-chat').hide();
-        $('#form-feedback').hide();
-        $('#form-send-transcript').show();
-        var email = $('#email').val();
-        if (email && email.length > 0) {
-            $('#emailAddress').val(email);
-        }
-    });
-
-    $('#btn-feedback-chat').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $('#form-chat-wrap').hide();
-        $('#message-area').hide();
-        $('#form-chat').hide();
-        $('#form-close-chat').hide();
-        $('#form-send-transcript').hide();
-        $('#form-feedback').show();
-        var email = $('#email').val();
-        if (email && email.length > 0) {
-            $('#emailAddress').val(email);
-        }
-    });
-
-    $('#btn-send-transcript').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var email = $('#emailAddress').val();
-        $('#form-chat-wrap').show();
-        $('#message-area').show();
-        $('#form-chat').show();
-        $('#form-close-chat').hide();
-        $('#form-send-transcript').hide();
-        chatStatus = "close-transcript";
-        author = email;
-        var msg = "";
-        $('#textarea-wrapper').hide();
-        var ctime = new Date().getTime();
-
-        subSocket.push(atmosphere.util.stringifyJSON({
-            time: ctime,
-            author: author,
-            message: endMessage,
-            chatStatus: chatStatus,
-            type: msgType,
-            wid: wid,
-            sessionId: sessionId,
-            currentPage: currentPage,
-            agentId: aid,
-            role: role,
-            visits: visits,
-            name: '',
-            email: '',
-            phone: '',
-            agentPhoto: '',
-            group: '',
-            version: '1.1'
-        }));
-        sending = true;
-        setTimeout(function () {
-            chatStatus = "notstarted";
-            sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
-        }, 250);
-    });
-
-    $('#btn-send-feedback').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var feedback = $('#feedback').val();
-        $('#form-chat-wrap').show();
-        $('#message-area').show();
-        $('#form-chat').show();
-        $('#form-close-chat').hide();
-        $('#form-feedback').hide();
-        $('#form-send-transcript').hide();
-
-        var rating = $('input[name=rating]:checked').val();
-        if (feedback.length > 0 || rating) {
-            leaveFeedbackEmail(wid, '', rating, feedback, 'Live Chat', 'Live Chat', sessionStorage.getItem("si_email"));
-        }
-
-    });
+    // }
 
 
     $('#btnSendHref').click(function (e) {
@@ -889,19 +623,19 @@ $(function () {
             agentId: aid,
             role: role,
             visits: visits,
-            name: sessionStorage.getItem("si_name"),
-            email: sessionStorage.getItem("si_email"),
-            phone: sessionStorage.getItem("si_phone"),
+            name: sessionStorage.getItem("rtp_name"),
+            email: sessionStorage.getItem("rtp_email"),
+            phone: sessionStorage.getItem("rtp_phone"),
             agentPhoto: '',
-            group: sessionStorage.getItem("si_group"),
+            group: sessionStorage.getItem("rtp_group"),
             version: '1.1',
-            consent: sessionStorage.getItem("si_consent"),
-            params: sessionStorage.getItem("si_params")
+            consent: sessionStorage.getItem("rtp_consent"),
+            params: sessionStorage.getItem("rtp_params")
         });
         pushl(msg);
         subSocket.push(msg);
 
-        //subSocket.push(atmosphere.util.stringifyJSON({ time:ctime,author: author, message: msg,chatStatus:chatStatus,type:msgType,wid:wid,sessionId:sessionId,currentPage:currentPage,agentId:aid,role:role,visits:visits,name:sessionStorage.getItem("si_name"),email:sessionStorage.getItem("si_email"),phone:sessionStorage.getItem("si_phone"),agentPhoto:'',group:sessionStorage.getItem("si_group"),version:'1.1',consent:sessionStorage.getItem("si_consent"),params:sessionStorage.getItem("si_params")    }));
+        //subSocket.push(atmosphere.util.stringifyJSON({ time:ctime,author: author, message: msg,chatStatus:chatStatus,type:msgType,wid:wid,sessionId:sessionId,currentPage:currentPage,agentId:aid,role:role,visits:visits,name:sessionStorage.getItem("rtp_name"),email:sessionStorage.getItem("rtp_email"),phone:sessionStorage.getItem("rtp_phone"),agentPhoto:'',group:sessionStorage.getItem("rtp_group"),version:'1.1',consent:sessionStorage.getItem("rtp_consent"),params:sessionStorage.getItem("rtp_params")    }));
         //sending=true;
         $("#message").val('').focus();
         try {
@@ -926,50 +660,11 @@ $(function () {
     function chatClosed() {
         $('#form-chat-wrap').show();
         $('#form-chat').show();
-        $('#message-area').show();
+        $('#message-area').hide();
         $('#form-close-chat').hide();
         chatStatus = "close";
-        var msg = "";
-        $('#textarea-wrapper').hide();
-        setTimeout(function () {
-            chatStatus = "notstarted";
-            sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
-            if (standalone == "1") {
-                var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment-wrapper-admin-img"><div class="si-img"><img data-name="' + widgetTitle + '" class="initials img-circle"/></div></div><div class="si-comment si-comment-button"><div class="si-blocks"><div class="si-block si-block-paragraph">'
-                msg += '<div class="c-message_attachment__row c-message_attachment__row--actions">'
-                msg += '<a class="c-button c-button--outline c-button--small c-button-nomargin" href="/chatWidgetStandalone.jsp?wid=' + wid + '" >' + startNewMessage + '</a>';
-                msg += '</div></div></div></div><span></span></div>';
-
-
-                chatContent.append(msg);
-                $('.initials').initial();
-            } else if (mobile == "1") {
-                var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment-wrapper-admin-img"><div class="si-img"><img data-name="' + widgetTitle + '" class="initials img-circle"/></div></div><div class="si-comment si-comment-button"><div class="si-blocks"><div class="si-block si-block-paragraph">'
-                msg += '<div class="c-message_attachment__row c-message_attachment__row--actions">'
-                msg += '<a class="c-button c-button--outline c-button--small c-button-nomargin" href="/chatWidgetStandalone.1.0.jsp?wid=' + wid + '" >' + startNewMessage + '</a>';
-                msg += '</div></div></div></div><span></span></div>';
-
-                chatContent.append(msg);
-                $('.initials').initial();
-            } else {
-                var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment-wrapper-admin-img"><div class="si-img"><img data-name="' + widgetTitle + '" class="initials img-circle"/></div></div><div class="si-comment si-comment-button"><div class="si-blocks"><div class="si-block si-block-paragraph">'
-                msg += '<div class="c-message_attachment__row c-message_attachment__row--actions">'
-                msg += '<a class="c-button c-button--outline c-button--small c-button-nomargin" href="/chatWidget.1.0.jsp?wid=' + wid + '" >' + startNewMessage + '</a>';
-                msg += '</div></div></div></div><span></span></div>';
-
-                chatContent.append(msg);
-                $('.initials').initial();
-            }
-            var scrollTo_val = $('#form-chat').prop('scrollHeight') + 'px';
-            $('#form-chat').slimScroll({
-                height: 240,
-                scrollTo: scrollTo_val
-            });
-
-            parent.postMessage("siChatEnded", "*");
-
-        }, 250);
-
+        // $('#textarea-wrapper').hide();
+        $('.siButtonActionClose-chat').show();
     }
 
     function addMessage(author, message, datetime, msgType, agentPhoto, chatStatus) {
@@ -1079,14 +774,14 @@ $(function () {
                 agentId: aid,
                 role: role,
                 visits: visits,
-                name: sessionStorage.getItem("si_name"),
-                email: sessionStorage.getItem("si_email"),
-                phone: sessionStorage.getItem("si_phone"),
+                name: sessionStorage.getItem("rtp_name"),
+                email: sessionStorage.getItem("rtp_email"),
+                phone: sessionStorage.getItem("rtp_phone"),
                 agentPhoto: '',
-                group: sessionStorage.getItem("si_group"),
+                group: sessionStorage.getItem("rtp_group"),
                 version: '1.1',
-                consent: sessionStorage.getItem("si_consent"),
-                params: sessionStorage.getItem("si_params")
+                consent: sessionStorage.getItem("rtp_consent"),
+                params: sessionStorage.getItem("rtp_params")
             }));
             sending = true;
             $("#message-wrapper").hide();
@@ -1157,14 +852,14 @@ $(function () {
                 agentId: aid,
                 role: role,
                 visits: visits,
-                name: sessionStorage.getItem("si_name"),
-                email: sessionStorage.getItem("si_email"),
-                phone: sessionStorage.getItem("si_phone"),
+                name: sessionStorage.getItem("rtp_name"),
+                email: sessionStorage.getItem("rtp_email"),
+                phone: sessionStorage.getItem("rtp_phone"),
                 agentPhoto: '',
-                group: sessionStorage.getItem("si_group"),
+                group: sessionStorage.getItem("rtp_group"),
                 version: '1.1',
-                consent: sessionStorage.getItem("si_consent"),
-                params: sessionStorage.getItem("si_params")
+                consent: sessionStorage.getItem("rtp_consent"),
+                params: sessionStorage.getItem("rtp_params")
             }));
         }
     }
@@ -1192,14 +887,14 @@ $(function () {
                 agentId: aid,
                 role: role,
                 visits: visits,
-                name: sessionStorage.getItem("si_name"),
-                email: sessionStorage.getItem("si_email"),
-                phone: sessionStorage.getItem("si_phone"),
+                name: sessionStorage.getItem("rtp_name"),
+                email: sessionStorage.getItem("rtp_email"),
+                phone: sessionStorage.getItem("rtp_phone"),
                 agentPhoto: '',
-                group: sessionStorage.getItem("si_group"),
+                group: sessionStorage.getItem("rtp_group"),
                 version: '1.1',
-                consent: sessionStorage.getItem("si_consent"),
-                params: sessionStorage.getItem("si_params")
+                consent: sessionStorage.getItem("rtp_consent"),
+                params: sessionStorage.getItem("rtp_params")
             }));
             sending = true;
 
@@ -1267,8 +962,9 @@ $(function () {
             return;
         }
         if ("notstarted" === json.chatStatus) {
+            debugger
             chatStatus = "queued";
-            sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
+            sessionStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             if (timeoutSeconds && timeoutSeconds.length > 0) {
                 var tsec = parseInt(timeoutSeconds) * 1000;
                 setTimeout(function () {
@@ -1342,8 +1038,9 @@ $(function () {
         var date = typeof (json.time) == 'string' ? parseInt(json.time) : json.time;
         if (json.message && json.message.length > 0) {
             if (json.chatStatus === 'restart') {
+                debugger
                 chatStatus = "notstarted";
-                sessionStorage.setItem("si_chatstatus_" + wid, chatStatus);
+                sessionStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
                 var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">';
                 msg += json.message;
                 msg += '</div></div></div></div><span></span></div>';
