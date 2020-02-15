@@ -51,14 +51,14 @@ $(function () {
         if (!sessionId || sessionId.length === 0) {
             sessionId = guid();
             localStorage.setItem("rtp_chatsid_" + wid, sessionId);
-            chatStatus = localStorage.getItem("rtp_chatstatus_" + wid);
+            chatStatus = sessionStorage.getItem("rtp_chatstatus_" + wid);
             if (!chatStatus || chatStatus.length === 0) {
                 chatStatus = "notstarted";
-                localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
+                sessionStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             }
         } else {
             //existing chat
-            // chatStatus = "history";
+            chatStatus = sessionStorage.getItem("rtp_chatstatus_" + wid);
             refresh = true;
         }
     } catch (err) {
@@ -90,8 +90,6 @@ $(function () {
         if (siName && siName.length > 0) { $("#name").val(siName); }
         var siEmail = localStorage.getItem("rtp_email");
         if (siEmail && siEmail.length > 0) { $("#email").val(siEmail); }
-        var siQuestion = localStorage.getItem("rtp_question");
-        if (siQuestion && siQuestion.length > 0) { $("#question").val(siQuestion); }
         $('.slim-scroll').slimScroll({
             height: chatwidget_vars.widgetHeight - 120,
             railVisible: true,
@@ -124,32 +122,27 @@ $(function () {
             });
         }
 
-        var flag = true;
-        flag = flag && (siName && siName.length > 0);
-        flag = flag && (siEmail && siEmail.length > 0);
-        flag = flag && (siQuestion && siQuestion.length > 0);
-        if (flag) {
-            chatStatus = 'History';
+        // var flag = true;
+        // flag = flag && (siName && siName.length > 0);
+        // flag = flag && (siEmail && siEmail.length > 0);
+        // if (flag) {
+        //     chatStatus = 'History';
             
-        } else {
-            chatStatus = 'notstarted';
-        }
+        // } else {
+        //     chatStatus = 'notstarted';
+        // }
     }
 
     $('#preSalesStart').click(function (event) {
         refresh = false;
         var name = $('#name').val();
         var email = $('#email').val();
-        var question = $('#question').val();
         sessionId = guid();
         localStorage.setItem("rtp_name", name);
         localStorage.setItem("rtp_email", email);
-        localStorage.setItem("rtp_question", question);
         localStorage.setItem("rtp_chatsid_" + wid, sessionId);
         var vname = true;
         var vemail = true;
-        var vquesion = true;
-        if (!question || question == 0) vquesion = false;
         if ($('#name').is(":visible") && name.length === 0) vname = false;
         if ($('#email').is(":visible") && email.length === 0) vemail = false;
         if ($('#email').is(":visible") && !validEmail(email)) vemail = false;
@@ -161,51 +154,54 @@ $(function () {
             vgroup = true;
         }
         
-        if (vname && vemail && vquesion) {
+        if (vname && vemail) {
 
             sending = true;
             var ctime = new Date().getTime();
 
+            $('button.loader').removeClass('loaded');
             socket.emit('User:Arrived', {
                 time: ctime,
                 author: author,
-                message: question,
                 wid: wid,
                 sessionId: sessionId,
                 currentPage: currentPage,
                 name: name,
                 email: email
             });
-            $('#form-presales').hide();
-            // $('.siButtonActionClose-chat').removeClass('hidden');
-            $("#chatContent").html('');
-            $('#form-chat-wrap').show();
-            $('#message-area').show();
-            $('#form-chat').show();
-            $('.siButtonActionClose-chat').show();
-            $('#textarea').css({
-                'display': 'table-row'
-            });
-
-            $('#body').css({
-                'height': '251px;'
-            });
-            if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
-                $('#message').focus();
-            } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
-
-            }
-            loadEmoji();
+            
         } else {
             if ($('#email').is(":visible") && !validEmail(email)) {
-                $('#errorMsg').html("<p class='operator' style='color:red'>" + invalidEmailMessage + "</p>");
+                $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>" + invalidEmailMessage + "</p>");
                 $('#buffer').css('padding-top', '30px');
             } else {
-                $('#errorMsg').html("<p class='operator' style='color:red'>" + genericError + "</p>");
+                $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>" + genericError + "</p>");
                 $('#buffer').css('padding-top', '30px');
             }
         }
     });
+
+    function showMainPage() {
+        $('#form-presales').hide();
+        $("#chatContent").html('');
+        $('#form-chat-wrap').show();
+        $('#message-area').show();
+        $('#form-chat').show();
+        $('.siButtonActionClose-chat').show();
+        $('#textarea').css({
+            'display': 'table-row'
+        });
+
+        $('#body').css({
+            'height': '251px;'
+        });
+        if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
+            $('#message').focus();
+        } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
+
+        }
+        loadEmoji();
+    }
 
     function loadEmoji() {
         if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
@@ -233,6 +229,7 @@ $(function () {
         socket.on('Room:Created', function (data) {
             userId = data.id;
             socket.emit('Joined:Room');
+            showMainPage();
             setNoResponseTimer();
         });
 
@@ -296,6 +293,16 @@ $(function () {
                     typingTimer = null;
                 }
                 
+            }
+        })
+
+        socket.on('Error', function(event) {
+            if (event.reason == 'wrong_workspace_id' && event.sessionId == sessionId) {
+                chatStatus = 'notstarted';
+                sessionStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
+                const error = 'You have a wrong workspace id now.\n Please contact our support!';
+                $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>" + error + "</p>");
+                $('#buffer').css('padding-top', '30px');
             }
         })
     };
@@ -381,9 +388,7 @@ $(function () {
     function newSubscribe() {
         var siName = localStorage.getItem("rtp_name");
         var siEmail = localStorage.getItem("rtp_email");
-        var siQuestion = localStorage.getItem("rtp_question");
         socket.emit('User:Arrived', {
-            message: siQuestion,
             wid: wid,
             sessionId: sessionId,
             currentPage: currentPage,

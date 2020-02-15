@@ -31,6 +31,10 @@ body {
     text-decoration: underline;
 }
 
+.loader.loaded {
+    display: none
+}
+
 .si-blocks a {
     text-decoration: underline !important;
 }

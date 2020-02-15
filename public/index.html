@@ -26,7 +26,7 @@
         /* */
         var chatwidget_vars = {
             'chatUrl': '/',
-            'wid': 'g5SdlOzjCpVpdA7z500sgwaYV20rH8',
+            'wid': '4xLBds8JytOrPHH4WckNU370f03SJe',
             'acct': '2c9fa5636fc030b5016fc572365203a1',
             'clientPage': 'testrtp.com/client-page',
             'defaultVisitorText': 'Visitor',
@@ -42,7 +42,7 @@
             'widgetTitle': 'Live Chat',
             'm': '0'
         };
-        
+
     </script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/socket.io-client@2/dist/socket.io.js"></script>
     <script type="text/javascript" src="./javascript/application.1.1.js"></script>
@@ -77,189 +77,174 @@
             </div>
         </div>
         <div id="body-container" class="body-container">
-                <div id="body">
-                        <div class="top-shadow">
+            <div id="body">
+                <div class="top-shadow">
+                </div>
+                <div id="body-inner">
+                    <div style="display: none;" class="view" id="form-message-sent">
+                        <p>Your message has been sent</p>
+                    </div>
+                    <div style="display: none;height:500px" class="view" id="form-close-chat">
+                        <div id="confirm-close-chat">
+                            <p>Do you want to close your chat?</p>
+                            <p class="actions" style="padding:5px;">
+                                <button class="btn" id="btn-close-chat" type="button">Close Chat</button>
+                                <button class="btn btn-success" id="btn-continue-chat" type="button">Cancel</button>
+                            </p>
                         </div>
-                        <div id="body-inner">
-                            <div style="display: none;" class="view" id="form-message-sent">
-                                <p>Your message has been sent</p>
-                            </div>
-                            <div style="display: none;height:500px" class="view" id="form-close-chat">
-                                <div id="confirm-close-chat">
-                                    <p>Do you want to close your chat?</p>
-                                    <p class="actions" style="padding:5px;">
-                                        <button class="btn" id="btn-close-chat" type="button">Close Chat</button>
-                                        <button class="btn btn-success" id="btn-continue-chat" type="button">Cancel</button>
-                                    </p>
-                                </div>
-                            </div>
-                            <div style="display: block;" class="view" id="form-presales">
-                                <div class="si-msg-profile">
-                                    <div class="si-prof-area si-prof-area-expanded">
-                                        <div class="si-group">
-                                            <div class="si-av-list">
-                                                <div class="si-av-list-img-blk">
-                                                    <div class="si-av-list-img">
-                                                        <div class="si-lavatar"><img alt='logo' src="images/logo-white.png"></div>
-                                                    </div>
-                                                </div>
-                                                <div class="si-av-list-intro"><span>Questions? Chat with us - we're
-                                                        here to help!</span></div>
+                    </div>
+                    <div style="display: block;" class="view" id="form-presales">
+                        <div class="si-msg-profile">
+                            <div class="si-prof-area si-prof-area-expanded">
+                                <div class="si-group">
+                                    <div class="si-av-list">
+                                        <div class="si-av-list-img-blk">
+                                            <div class="si-av-list-img">
+                                                <div class="si-lavatar"><img alt='logo' src="images/logo-white.png"></div>
+                                            </div>
+                                        </div>
+                                        <div class="si-av-list-intro"><span>Questions? Chat with us - we're here to help!</span></div>
 
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
-                                <div id="presales-div" class="slim-scroll-pc">
-                                    <div id="errorMsg" style="float:left;width:100%;"></div>
-                                    <fieldset>
-                                        <label class="block clearfix col-sm-8">
-                                            <span class="block">
-                                                <input name='name' id="name" type="text" class="form-control" aria-label="Your Name *" placeholder="Your Name *" />
-                                            </span>
-                                        </label>
-                                        <label class="block clearfix col-sm-8">
-                                            <span class="block">
-                                                <input name='email' id="email" type="text" class="form-control" aria-label="Your Email *" placeholder="Your Email *" />
-                                            </span>
-                                        </label>
-                                        <label style="display:none;">
-                                            <span class="block">
-                                                <input name='phone' id="phone" type="text" class="form-control" aria-label="Your Phone" placeholder="Your Phone" style='display:none;'
-                                                />
-                                            </span>
-                                        </label>
-                                        <input name='group' id="group" type="hidden" value="" style='display:none;' />
-                                        <input name='params' id="params" type="hidden" value="" style='display:none;' />
-                                        <label class="block clearfix col-sm-8">
-                                            <select class="form-control" name="question" id="question" aria-label="Your Question">
-                                                <option value="">Select Queue</option>
-                                                <option value="1-support">1st Question</option>
-                                                <option value="2-sales">2nd Question</option>
-                                                <option value="3-happy-sale">3rd Question</option>
-                                            </select>
-                                        </label>
-                                        <input name="consent" id="consent" type="hidden" value='hidden'>
-                                        <label class="block clearfix col-sm-8">
-                                            <button id="preSalesStart" type="submit" class="btn">
-                                                Start Chat
-                                            </button>
-                                        </label>
-                                        <input name='custom' id="custom" type="hidden" />
-                                    </fieldset>
-                                </div>
                             </div>
-                            <div style="display: none;height:400px" class="view" id="form-send-transcript">
-                                <div id="confirm-send-transcript">
-                                    <p style="margin-top:10px;">Close Chat and Send Transcript?</p>
-                                    <p class="actions">
-                                        <input name="emailAddress" id="emailAddress" type="text" class="col-sm-5" placeholder="Your email address" id="emailAddress">
-                                        <br><br><button class="btn" id="btn-send-transcript" type="button">Send Transcript</button>
-                                        <button class="btn btn-success" id="btn-transcript-continue-chat" type="button">Cancel</button>
-                                    </p>
-                                </div>
-                            </div>
-                            <div style="display: none;height:400px;padding:10px;" class="view" id="form-feedback">
-                                <div id="confirm-send-feedback">
-                                    <p style="padding-left:3px;"></p>
+                        </div>
+                        <div id="presales-div" class="slim-scroll-pc">
+                            <fieldset>
+                                <label id="errorMsg" class="block clearfix col-sm-12"></label>
+                            
+                                <label class="block clearfix col-sm-12">
+                                    <span class="block">
+                                        <input name='name' id="name" type="text" class="form-control" aria-label="Your Name *" placeholder="Your Name *" />
+                                    </span>
+                                </label>
+                                <label class="block clearfix col-sm-12">
+                                    <span class="block">
+                                        <input name='email' id="email" type="text" class="form-control" aria-label="Your Email *" placeholder="Your Email *" />
+                                    </span>
+                                </label>
+                                <input name='group' id="group" type="hidden" value="" style='display:none;' />
+                                <input name='params' id="params" type="hidden" value="" style='display:none;' />
+                                <input name="consent" id="consent" type="hidden" value='hidden'>
+                                <label class="block clearfix col-sm-12">
+                                    <button class="btn btn-primary" type="submit" id="preSalesStart">
+                                        <span class="loader loaded spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        Start Chat
+                                    </button>
+                                </label>
+                                <input name='custom' id="custom" type="hidden" />
+                            </fieldset>
+                        </div>
+                    </div>
+                    <div style="display: none;height:400px" class="view" id="form-send-transcript">
+                        <div id="confirm-send-transcript">
+                            <p style="margin-top:10px;">Close Chat and Send Transcript?</p>
+                            <p class="actions">
+                                <input name="emailAddress" id="emailAddress" type="text" class="col-sm-5" placeholder="Your email address" id="emailAddress">
+                                <br><br><button class="btn" id="btn-send-transcript" type="button">Send Transcript</button>
+                                <button class="btn btn-success" id="btn-transcript-continue-chat" type="button">Cancel</button>
+                            </p>
+                        </div>
+                    </div>
+                    <div style="display: none;height:400px;padding:10px;" class="view" id="form-feedback">
+                        <div id="confirm-send-feedback">
+                            <p style="padding-left:3px;"></p>
 
-                                    <p class="actions" style="padding-left:3px;">
-                                        <div style="text-align:center;">
-                                            <div class="btn-group" data-toggle="buttons">
-                                                <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;border-bottom-left-radius: 2px !important;;border-top-left-radius: 2px !important;;">
-                                                    <input type="radio" name="rating" id="rate1" value="1"> 1 </label>
-                                                <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
-                                                    <input type="radio" name="rating" id="rate2" value="2"> 2 </label>
-                                                <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
-                                                    <input type="radio" name="rating" id="rate3" value="3"> 3 </label>
-                                                <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
-                                                    <input type="radio" name="rating" id="rate4" value="4"> 4 </label>
-                                                <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
-                                                    <input type="radio" name="rating" id="rate5" value="5"> 5 </label>
-                                                <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
-                                                    <input type="radio" name="rating" id="rate6" value="6"> 6 </label>
-                                                <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
-                                                    <input type="radio" name="rating" id="rate7" value="7"> 7 </label>
-                                                <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
-                                                    <input type="radio" name="rating" id="rate8" value="8"> 8 </label>
-                                                <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
-                                                    <input type="radio" name="rating" id="rate9" value="9"> 9 </label>
-                                                <label class="btn btn-default btn-feedback" style="margin-right:0px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;border-bottom-right-radius: 2px !important;;border-top-right-radius: 2px !important;;">
-                                                    <input type="radio" name="rating" id="rate10" value="10"> 10
-                                                    </label>
-                                            </div>
-                                        </div>
-                                        <br>
+                            <p class="actions" style="padding-left:3px;">
+                                <div style="text-align:center;">
+                                    <div class="btn-group" data-toggle="buttons">
+                                        <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;border-bottom-left-radius: 2px !important;;border-top-left-radius: 2px !important;;">
+                                            <input type="radio" name="rating" id="rate1" value="1"> 1 </label>
+                                        <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
+                                            <input type="radio" name="rating" id="rate2" value="2"> 2 </label>
+                                        <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
+                                            <input type="radio" name="rating" id="rate3" value="3"> 3 </label>
+                                        <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
+                                            <input type="radio" name="rating" id="rate4" value="4"> 4 </label>
+                                        <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
+                                            <input type="radio" name="rating" id="rate5" value="5"> 5 </label>
+                                        <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
+                                            <input type="radio" name="rating" id="rate6" value="6"> 6 </label>
+                                        <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
+                                            <input type="radio" name="rating" id="rate7" value="7"> 7 </label>
+                                        <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
+                                            <input type="radio" name="rating" id="rate8" value="8"> 8 </label>
+                                        <label class="btn btn-default btn-feedback" style="margin-right:2px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;">
+                                            <input type="radio" name="rating" id="rate9" value="9"> 9 </label>
+                                        <label class="btn btn-default btn-feedback" style="margin-right:0px;border-width:1px;border-radius:unset !important;font-size:11px;padding:6px 10px;border-bottom-right-radius: 2px !important;;border-top-right-radius: 2px !important;;">
+                                            <input type="radio" name="rating" id="rate10" value="10"> 10
+                                        </label>
+                                    </div>
+                                </div>
+                                <br>
 
-                                        <textarea style="font-weight:400;width:100%" name="feedback" id="feedback" class="textarea-bg textarea-font" maxlength="3000"
-                                            placeholder=""></textarea>
-                                        <br><button class="btn" id="btn-send-feedback" type="button"></button>
-                                        <button class="btn btn-success" id="btn-feedback-continue-chat" type="button">Cancel</button>
-                                    </p>
+                                <textarea style="font-weight:400;width:100%" name="feedback" id="feedback" class="textarea-bg textarea-font" maxlength="3000"
+                                    placeholder=""></textarea>
+                                <br><button class="btn" id="btn-send-feedback" type="button"></button>
+                                <button class="btn btn-success" id="btn-feedback-continue-chat" type="button">Cancel</button>
+                            </p>
+                        </div>
+                    </div>
+                    <div style="display: none;height:500px" class="view" id="form-offline-sent">
+                        <div class="si-msg-profile">
+                            <div class="si-prof-area si-prof-area-expanded">
+                                <div class="si-group">
+                                    <div class="si-av-list">
+                                        <div class="si-av-list-img-blk">
+                                            <div class="si-av-list-img">
+                                                <div class="si-lavatar"><img alt='logo' src="images/logo-white.png"></div>
+                                            </div>
+                                        </div>
+                                        <div class="si-av-list-intro">
+                                            <span>Questions? Chat with us - we're here to help!</span>
+                                        </div>
+                                        <div>
+                                            <p id="powered2">
+                                                <a href="http://www.socialintents.com/?utm_source=livechat&amp;utm_medium=embedded&amp;utm_campaign=livechat" target="_blank"
+                                                    class="footer2" tabindex="-1"> We're
+                                                    <i style="vertical-align:middle;"><svg width="7" height="13" viewBox="0 0 7 13"
+                                                            xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd">
+                                                                <path d="M4.127.496C4.51-.12 5.37.356 5.16 1.07L3.89 5.14H6.22c.483 0 .757.616.464 1.044l-4.338 6.34c-.407.595-1.244.082-1.01-.618L2.72 7.656H.778c-.47 0-.748-.59-.48-1.02L4.13.495z"
+                                                                    fill="#F6A623"></path>
+                                                                <path fill="#FEF79E" d="M4.606.867L.778 7.007h2.807l-1.7 5.126 4.337-6.34H3.16"></path>
+                                                            </g></svg></i> by Social Intents</a>
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div style="display: none;height:500px" class="view" id="form-offline-sent">
-                                <div class="si-msg-profile">
-                                    <div class="si-prof-area si-prof-area-expanded">
-                                        <div class="si-group">
-                                            <div class="si-av-list">
-                                                <div class="si-av-list-img-blk">
-                                                    <div class="si-av-list-img">
-                                                        <div class="si-lavatar"><img alt='logo' src="images/logo-white.png"></div>
-                                                    </div>
-                                                </div>
-                                                <div class="si-av-list-intro">
-                                                    <span>Questions? Chat with us - we're here to help!</span>
-                                                </div>
-                                                <div>
-                                                    <p id="powered2">
-                                                        <a href="http://www.socialintents.com/?utm_source=livechat&amp;utm_medium=embedded&amp;utm_campaign=livechat" target="_blank"
-                                                            class="footer2" tabindex="-1"> We're
-                                                            <i style="vertical-align:middle;"><svg width="7" height="13"
-                                                                    viewBox="0 0 7 13" xmlns="http://www.w3.org/2000/svg"><g
-                                                                        fill="none" fill-rule="evenodd">
-                                                                        <path d="M4.127.496C4.51-.12 5.37.356 5.16 1.07L3.89 5.14H6.22c.483 0 .757.616.464 1.044l-4.338 6.34c-.407.595-1.244.082-1.01-.618L2.72 7.656H.778c-.47 0-.748-.59-.48-1.02L4.13.495z"
-                                                                            fill="#F6A623"></path>
-                                                                        <path fill="#FEF79E" d="M4.606.867L.778 7.007h2.807l-1.7 5.126 4.337-6.34H3.16"></path>
-                                                                    </g></svg></i> by Social Intents</a>
-                                                    </p>
+                        </div>
+                        <div id="confirm-offline-sent">
+                            <br><p>Thanks! Your message has been sent.</p>
+                        </div>
+                    </div>
+                    <div id="form-chat-wrap" style="display: none;">
+                        <div style="display: none;" class="view slim-scroll" id="form-chat" data-height="240">
+                            <div id="status" class="sic-blocks" style='padding-top:12px;'>
+                                <div class="sic-block sic-block-admin">
+                                    <div class="si-comment-wrapper si-comment-wrapper-admin">
+                                        <div class="si-comment-wrapper-admin-img">
+                                            <div class="si-img">
+                                                <img id='initials' data-name="Live Chat" src="./images/logo-white.png" class="initials img-circle" />
+                                            </div>
+                                        </div>
+                                        <div class="si-comment">
+                                            <div class="si-blocks">
+                                                <div class="si-block si-block-paragraph">
+                                                    Questions? Chat with us - we're here to help!
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div id="confirm-offline-sent">
-                                    <br><p>Thanks! Your message has been sent.</p>
+                                    <span></span>
                                 </div>
                             </div>
-                            <div id="form-chat-wrap" style="display: none;">
-                                <div style="display: none;" class="view slim-scroll" id="form-chat" data-height="240">
-                                    <div id="status" class="sic-blocks" style='padding-top:12px;'>
-                                        <div class="sic-block sic-block-admin">
-                                            <div class="si-comment-wrapper si-comment-wrapper-admin">
-                                                <div class="si-comment-wrapper-admin-img">
-                                                    <div class="si-img">
-                                                        <img id='initials' data-name="Live Chat" src="./images/logo-white.png"
-                                                            class="initials img-circle" />
-                                                    </div>
-                                                </div>
-                                                <div class="si-comment">
-                                                    <div class="si-blocks">
-                                                        <div class="si-block si-block-paragraph">
-                                                            Questions? Chat with us - we're here to help!
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <span></span>
-                                        </div>
-                                    </div>
-                                    <div id="chatContent" class="sic-blocks">
-                                    </div>
-                                </div>
+                            <div id="chatContent" class="sic-blocks">
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
         </div>
     </div>
     <div id="message-area" class="si-textarea" style="display:none;">
@@ -279,7 +264,7 @@
     <div id="nopsi" style="display:none;"></div>
     <script src="./assets/js/jquery.slimscroll.min.js"></script>
     <script type="text/javascript">
-        
+
         // setTimeout(function () {
         //     autosize(document.querySelector('#message'));
         // }, 1000) 
@@ -315,7 +300,7 @@
                 $('.msgArea').emojiPicker('toggle');
             });
         });
-        
+
     </script>
 </body>
 

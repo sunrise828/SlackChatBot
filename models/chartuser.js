@@ -6,7 +6,6 @@ module.exports = (sequelize, DataTypes) => {
     name: DataTypes.STRING,
     sessionId: DataTypes.STRING,
     workspaceId: DataTypes.STRING,
-    queueId: DataTypes.INTEGER,
     channelId: DataTypes.STRING,
     active: {
       type: DataTypes.INTEGER,
@@ -26,7 +25,6 @@ module.exports = (sequelize, DataTypes) => {
     webPage: {
       type: DataTypes.STRING
     }
-
   }, {});
   User.associate = function(models) {
     // associations can be defined here

@@ -1,3 +1,4 @@
+const axios = require('axios');
 const UserController = require('../controllers').user;
 const slackbot = require('./slackbot');
 const History = require('../models').History;
@@ -18,16 +19,24 @@ exports.emitOverChannel = emitOverChannel;
 exports.init = async () => {
     global.io.on('connection', async (socket) => {
         socket.on("User:Arrived", async function (data) {
-            const queIndex = data.message.indexOf('-');
-            const queId = Number(data.message.substr(0, queIndex));
-            const queName = data.message.substr(queIndex + 1);
-            const newChannel = await UserController.getNewChannel(data.name, queName);
+            const wRes = await axios.post('https://www.testrtp.com/api/v1/slackbot/getinfobyserial',
+            {
+                serialId: data.wid
+            });
+
+            if (wRes.status != 200 || wRes.data.msg !== 'success') {
+                return emitOverChannel('Error', {
+                    reason: 'wrong_workspace_id',
+                    sessionId: data.sessionId
+                });
+            }
+            const workspace = wRes.data.slackbot;
+            const newChannel = await UserController.getNewChannel(data.name, workspace.queueName);
             UserController.findOrCreate({
                 where: {
                     email: data.email,
                     name: data.name,
-                    sessionId: data.sessionId,
-                    queueId: queId
+                    sessionId: data.sessionId
                 },
                 defaults: {
                     channel: newChannel.length > 0 ? newChannel : `customer-${new Date().getTime()}`,
@@ -62,10 +71,10 @@ exports.init = async () => {
                         msgs: latest
                     });
                 } else {
-                    let newUser = await createChannel(user, queName);
+                    let newUser = await createChannel(user, workspace);
                     const plainUser = newUser.get({ plain: true });
                     socket.join(plainUser.channelId);
-                    roomInit(socket, newUser);
+                    roomInit(socket, newUser, workspace);
                     emitToSocketId(plainUser.channelId, 'Room:Created', {
                         sessionId: plainUser.sessionId,
                         channel: plainUser.channelId,
@@ -81,10 +90,13 @@ exports.init = async () => {
     });
 };
 
-function createChannel(user, queName) {
+function createChannel(user, workspace) {
     return new Promise(async (resolve, reject) => {
         const plainUser = user.get({ plain: true });
-        const flag = await slackbot.init(plainUser.workspaceId);
+        const flag = await slackbot.init({
+            id: plainUser.workspaceId,
+            ...workspace
+        });
         if (flag) {
             const web = global.slackWeb[plainUser.workspaceId];
             if (!plainUser.channelId || plainUser.channelId.length <= 0) {
@@ -117,7 +129,7 @@ function createChannel(user, queName) {
                     }
                     user.channelId = channel.id;
                     await user.save();
-                    const broadMessage = `Chat starting in <#${plainUser.channelId}|${plainUser.channel}>.\n${plainUser.name} sent first message for queue "${queName}" to <#${plainUser.channelId}|${plainUser.channel}>`;
+                    const broadMessage = `Chat starting in <#${plainUser.channelId}|${plainUser.channel}>.\n${plainUser.name} sent first message for queue "${workspace.queueName}" to <#${plainUser.channelId}|${plainUser.channel}>`;
                     await web.chat.postMessage({
                         text: broadMessage,
                         channel: user.channelId,
@@ -187,7 +199,7 @@ function getChannel (lists, cname) {
     }
 }
 
-async function roomInit(socket, user) {
+async function roomInit(socket, user, workspace) {
     const plainUser = user.get({ plain: true });
     const roomId = plainUser.channelId;
 
@@ -218,7 +230,7 @@ async function roomInit(socket, user) {
     socket.in(`${roomId}`).on('Joined:Room', async () => {
         // emitToSocketId(plainUser.channel, 'Error', 'Invalid Workspace Id');
         await global.slackWeb[plainUser.workspaceId].chat.postMessage({
-            channel: 'stp',
+            channel: workspace.incomeChannelId,
             text: `${plainUser.name} started the conversation on <#${plainUser.channelId}|${plainUser.channel}>.`,
             attachments: [{
                 "pretext": "Visitor Information",
