@@ -30,7 +30,8 @@ exports.init = async (workspace) => {
         text: data.text,
         channel: data.channel,
         domain: 'slack',
-        sent: 1 
+        sent: 1,
+        slackUser: data.user 
       });
 
       const sendData = {
@@ -39,6 +40,13 @@ exports.init = async (workspace) => {
         type: data.type,
         event_ts: data.event_ts,
         ts: data.ts
+      }
+      socket.emitToSocketId(data.channel, 'Message', sendData);
+    });
+
+    global.bot[workspace.id].on('user_typing', async function(data) {
+      const sendData = {
+        status: 'aTyping'
       }
       socket.emitToSocketId(data.channel, 'Message', sendData);
     });
@@ -165,5 +173,45 @@ async function noSupport(channelId) {
     socket.emitToSocketId(channelId, 'NoSupport');
   }
   clearTimeout(global.timers[channelId]);
+}
+
+exports.verifyChannels = (workspace) => {
+  return new Promise(async (resolve) => {
+    const webclient = global.slackWeb[workspace.id] || new WebClient(workspace.accessToken);
+    if (webclient) {
+      const {ok, members} = await webclient.conversations.members({
+        channel: workspace.incomeChannelId
+      });
+
+      if (ok && members) {
+        const promiseAll = members.map(member => {
+          return new Promise(async (resolve, reject) => {
+            const {ok, presence} = await webclient.users.getPresence({
+              user: member
+            });
+
+            if (ok) {
+              resolve(presence);
+            } else {
+              resolve({});
+            }
+          })
+        });
+
+        const results = await Promise.all(promiseAll);
+        let flag = false;
+        for(var i = 0; i < results.length; i++) {
+          if (results[i] === 'active') {
+            flag = true;
+            break;
+          }
+        }
+        resolve(flag);
+      }
+    } else {
+      resolve(false);
+    }
+  })
+  
 }
 

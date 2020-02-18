@@ -7,10 +7,10 @@ module.exports = (sequelize, DataTypes) => {
     sent: {
       type: DataTypes.INTEGER,
       defaultValue: 0
+    },
+    slackUser: {
+      type: DataTypes.STRING
     }
   }, {});
-  History.associate = function(models) {
-    // associations can be defined here
-  };
   return History;
 };

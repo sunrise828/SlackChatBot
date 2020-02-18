@@ -31,6 +31,13 @@ exports.init = async () => {
                 });
             }
             const workspace = wRes.data.slackbot;
+            const presence = await slackbot.verifyChannels(workspace);
+            if (!presence) {
+                return emitOverChannel('Error', {
+                    reason: 'not_support',
+                    sessionId: data.sessionId
+                });
+            }
             const newChannel = await UserController.getNewChannel(data.name, workspace.queueName);
             UserController.findOrCreate({
                 where: {
@@ -45,6 +52,7 @@ exports.init = async () => {
                     webPage: data.currentPage
                 }
             }).then(async ([user, created]) => {
+
                 if (user.status > 0) {
                     socket.join(user.channelId);
                     const histories = await History.findAll({
@@ -203,32 +211,10 @@ async function roomInit(socket, user, workspace) {
     const plainUser = user.get({ plain: true });
     const roomId = plainUser.channelId;
 
-    if (global.clientTimers[roomId]) {
-        const histories = await History.findAll({
-            where: {
-                channel: user.channelId
-            },
-            order: [
-                'createdAt'
-            ]
-        });
-
-        const latest = histories.map(history => ({
-            text: history.text,
-            domain: history.domain,
-            createdAt: history.createdAt
-        }));
-
-        clearTimeout(global.clientTimers[user.channelId]);
-        global.clientTimers[user.channelId] = null;
-                    
-        emitToSocketId(user.channelId, 'Histories', {
-            status: 'openning',
-            msgs: latest
-        });
-    }
+    sendHistories(plainUser);
     socket.in(`${roomId}`).on('Joined:Room', async () => {
         // emitToSocketId(plainUser.channel, 'Error', 'Invalid Workspace Id');
+        sendHistories(plainUser);
         await global.slackWeb[plainUser.workspaceId].chat.postMessage({
             channel: workspace.incomeChannelId,
             text: `${plainUser.name} started the conversation on <#${plainUser.channelId}|${plainUser.channel}>.`,
@@ -238,6 +224,10 @@ async function roomInit(socket, user, workspace) {
             }]
         });
     });
+
+    socket.in(`${roomId}`).on('Typing', async (message) => {
+        global.bot[plainUser.workspaceId].sendTyping(plainUser.channelId);
+    })
 
     socket.in(`${roomId}`).on('Message', async (message) => {
         const history = await History.create({
@@ -276,6 +266,10 @@ async function roomInit(socket, user, workspace) {
     });
 
     socket.in(`${roomId}`).on('disconnect', async (message) => {
+        global.slackWeb[user.workspaceId].chat.postMessage({
+            text: `${user.name} went offline`,
+            channel: user.channelId
+        });
         global.clientTimers[roomId] = setTimeout(async () => {
             const user = await User.findOne({
                 where: {
@@ -293,4 +287,36 @@ async function roomInit(socket, user, workspace) {
             }
         }, 4 * 60 * 1000);
     });
+}
+
+async function sendHistories(user) {
+    if (global.clientTimers[user.channelId]) {
+        const histories = await History.findAll({
+            where: {
+                channel: user.channelId
+            },
+            order: [
+                'createdAt'
+            ]
+        });
+
+        const latest = histories.map(history => ({
+            text: history.text,
+            domain: history.domain,
+            createdAt: history.createdAt
+        }));
+
+        clearTimeout(global.clientTimers[user.channelId]);
+        global.clientTimers[user.channelId] = null;
+         
+        await global.slackWeb[user.workspaceId].chat.postMessage({
+            channel: user.channelId,
+            text: `${user.name} come back online.`
+        });
+
+        emitToSocketId(user.channelId, 'Histories', {
+            status: 'openning',
+            msgs: latest
+        });
+    }
 }
