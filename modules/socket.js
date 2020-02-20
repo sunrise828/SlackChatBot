@@ -3,6 +3,8 @@ const UserController = require('../controllers').user;
 const slackbot = require('./slackbot');
 const History = require('../models').History;
 const User = require('../models').ChatUser;
+const env = process.env.NODE_ENV || 'development';
+const config = require(__dirname + '/../config/config.json')[env];
 
 function emitToSocketId(socketId, eventName, data) {
     console.log(`Emit ${eventName}`, socketId, data);
@@ -243,6 +245,36 @@ async function roomInit(socket, user, workspace) {
         if (res.ok) {
             history.sent = 1;
             history.save();
+
+            let params = {
+                requestorName: user.name,
+                requestorEmail: user.email,
+                serialId: user.workspaceId,
+                content: message.message,
+                domain: 'user'
+            };
+
+            if (user.ticketId) {
+                params.ticketId = user.ticketId;
+            }
+
+            axios.post(config.apiHost + 'importticket', params)
+            .then(async (res) => {
+                if (res.data.status && !user.ticketId) {
+                    user.ticketId = res.data.ticket;
+                    await user.save();
+                    emitToSocketId(user.channelId, 'Message', {
+                        author: 'Support Man',
+                        message: `Ticket with #-${user.ticketId} is created.`,
+                        type: '',
+                        event_ts: new Date().getTime(),
+                        ts: new Date().getTime()
+                    })
+                }
+            })
+            .catch(err => {
+                console.log('api failed', err);
+            });
         } else {
             console.log('error message to slack', res);
         }
@@ -262,6 +294,25 @@ async function roomInit(socket, user, workspace) {
                 channel: user.channelId,
                 text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
             });
+
+            if (user.ticketId) {
+                axios.post(config.apiHost + 'finishticket', {
+                    requestorName: user.name,
+                    requestorEmail: user.email,
+                    serialId: user.workspaceId,
+                    domain: 'user',
+                    ticketId: user.ticketId
+                })
+                .then(async (res) => {
+                    if (res.status) {
+                        console.log('ticket finished ', res.data.ticket);
+                    }
+                })
+                .catch(err => {
+                    console.log('api failed', err);
+                });
+            }
+            
         }
     });
 

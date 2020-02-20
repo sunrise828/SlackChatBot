@@ -3,9 +3,10 @@ const { Op } = require("sequelize");
 const { WebClient, LogLevel } = require('@slack/web-api');
 const socket = require('./socket');
 const _ = require('lodash');
-
+const axios = require('axios');
 const env = process.env.NODE_ENV || 'development';
-const Workspace = require('../models').Workspace;
+const config = require(__dirname + '/../config/config.json')[env];
+
 const User = require('../models').ChatUser;
 const History = require('../models').History;
 
@@ -16,12 +17,12 @@ exports.init = async (workspace) => {
     });
     global.slackWeb[workspace.id]['botUserId'] = workspace.botUserId;
     global.bot[workspace.id] = new RTMClient(workspace.botAccessToken);
-    
+
     global.bot[workspace.id].on('start', function () {
       console.info('============= bot started ===================');
     });
-  
-    global.bot[workspace.id].on('message', async function(data) {
+
+    global.bot[workspace.id].on('message', async function (data) {
       if (data.type != "message" || data.subtype) {
         return;
       }
@@ -31,7 +32,7 @@ exports.init = async (workspace) => {
         channel: data.channel,
         domain: 'slack',
         sent: 1,
-        slackUser: data.user 
+        slackUser: data.user
       });
 
       const sendData = {
@@ -42,16 +43,46 @@ exports.init = async (workspace) => {
         ts: data.ts
       }
       socket.emitToSocketId(data.channel, 'Message', sendData);
+
+      const user = await User.findOne({
+        channelId: data.channel
+      });
+
+      let params = {
+        requestorName: user.name,
+        requestorEmail: user.email,
+        serialId: user.workspaceId,
+        content: data.text,
+        domain: 'slack',
+        userId: data.user
+      };
+      if (user.ticketId) {
+        params.ticketId = user.ticketId;
+      }
+      axios.post(config.apiHost + 'importticket')
+        .then(async res => {
+          if (res.data.status && !user.ticketId) {
+            user.ticketId = res.data.ticket;
+            await user.save();
+            emitToSocketId(user.channelId, 'Message', {
+              author: 'Support Man',
+              message: `Ticket with #-${user.ticketId} is created.`,
+              type: '',
+              event_ts: new Date().getTime(),
+              ts: new Date().getTime()
+            })
+          }
+        });
     });
 
-    global.bot[workspace.id].on('user_typing', async function(data) {
+    global.bot[workspace.id].on('user_typing', async function (data) {
       const sendData = {
         status: 'aTyping'
       }
       socket.emitToSocketId(data.channel, 'Message', sendData);
     });
 
-    global.bot[workspace.id].on('member_joined_channel', async function(event) {
+    global.bot[workspace.id].on('member_joined_channel', async function (event) {
       // Add the subscription
       if (event.user == workspace.botUserId || event.user == workspace.userId) {
         return;
@@ -62,7 +93,7 @@ exports.init = async (workspace) => {
         }
       });
       if (chatUsers.length) {
-        for(var i = 0; i < chatUsers.length; i++) {
+        for (var i = 0; i < chatUsers.length; i++) {
           let chatUser = chatUsers[i];
           let slackUsers = [];
           if (chatUser.slackId)
@@ -79,8 +110,8 @@ exports.init = async (workspace) => {
       }
     });
 
-    global.bot[workspace.id].on('presence_change', async function(event) {
-      let users = event.user? [event.user]: event.users || [];
+    global.bot[workspace.id].on('presence_change', async function (event) {
+      let users = event.user ? [event.user] : event.users || [];
       if (users.length > 0) {
         // const userInfo = await global.slackWeb[worksp]
         let channels = [];
@@ -92,7 +123,7 @@ exports.init = async (workspace) => {
         }
 
         if (channels.length > 0) {
-          for(var i = 0; i < channels.length; i++) {
+          for (var i = 0; i < channels.length; i++) {
             const user = await User.findOne({
               where: {
                 channelId: channels[i]
@@ -102,7 +133,7 @@ exports.init = async (workspace) => {
             if (user) {
               let slackUsers = [];
               if (user.slackId) slackUsers = user.slackId.split(',');
-              let newUsers = event.presence == 'away'? slackUsers.filter(id => (id != event.user)): slackUsers.concat([event.user]);
+              let newUsers = event.presence == 'away' ? slackUsers.filter(id => (id != event.user)) : slackUsers.concat([event.user]);
               newUsers = _.uniq(newUsers);
               user.slackId = newUsers.join(',');
               await user.save();
@@ -117,7 +148,7 @@ exports.init = async (workspace) => {
       }
     });
 
-    global.bot[workspace.id].on('member_left_channel', async function(event) {
+    global.bot[workspace.id].on('member_left_channel', async function (event) {
       if (event.user == workspace.botUserId || event.user == workspace.userId) {
         return;
       }
@@ -145,7 +176,7 @@ exports.init = async (workspace) => {
 
     async function addPresenceSubscriptions(userIds) {
       if (userIds) {
-        await global.bot[workspace.id].subscribePresence(userIds);  
+        await global.bot[workspace.id].subscribePresence(userIds);
       } else {
         const users = await global.slackWeb[workspace.id].users.list();
         if (users.ok) {
@@ -171,6 +202,24 @@ async function noSupport(channelId) {
     user.status = 1;
     await user.save();
     socket.emitToSocketId(channelId, 'NoSupport');
+
+    if (user.ticketId) {
+      axios.post(config.apiHost + 'finishticket', {
+        requestorName: user.name,
+        requestorEmail: user.email,
+        serialId: user.workspaceId,
+        domain: 'slack',
+        ticketId: user.ticketId
+      })
+        .then(async (res) => {
+          if (res.status) {
+            console.log('ticket finished ', res.data.ticket);
+          }
+        })
+        .catch(err => {
+          console.log('api failed', err);
+        });
+    }
   }
   clearTimeout(global.timers[channelId]);
 }
@@ -179,14 +228,14 @@ exports.verifyChannels = (workspace) => {
   return new Promise(async (resolve) => {
     const webclient = global.slackWeb[workspace.id] || new WebClient(workspace.accessToken);
     if (webclient) {
-      const {ok, members} = await webclient.conversations.members({
+      const { ok, members } = await webclient.conversations.members({
         channel: workspace.incomeChannelId
       });
 
       if (ok && members) {
         const promiseAll = members.map(member => {
           return new Promise(async (resolve, reject) => {
-            const {ok, presence} = await webclient.users.getPresence({
+            const { ok, presence } = await webclient.users.getPresence({
               user: member
             });
 
@@ -200,7 +249,7 @@ exports.verifyChannels = (workspace) => {
 
         const results = await Promise.all(promiseAll);
         let flag = false;
-        for(var i = 0; i < results.length; i++) {
+        for (var i = 0; i < results.length; i++) {
           if (results[i] === 'active') {
             flag = true;
             break;
@@ -212,6 +261,6 @@ exports.verifyChannels = (workspace) => {
       resolve(false);
     }
   })
-  
+
 }
 
