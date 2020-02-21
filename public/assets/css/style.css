@@ -270,7 +270,7 @@ input.text {
     display: block;
     font: inherit;
     height: 56px;
-    overflow: auto;
+    overflow: hidden;
     padding: 0;
     resize: none;
     width: 93%;
@@ -362,7 +362,7 @@ input.text {
 
 #title-text {
     display: inline-block;
-    width: 83%;
+    width: 80%;
     text-align: center;
     margin-left: 28px;
     vertical-align: sub;

@@ -21,10 +21,10 @@ exports.emitOverChannel = emitOverChannel;
 exports.init = async () => {
     global.io.on('connection', async (socket) => {
         socket.on("User:Arrived", async function (data) {
-            const wRes = await axios.post('https://www.testrtp.com/api/v1/slackbot/getinfobyserial',
-            {
-                serialId: data.wid
-            });
+            const wRes = await axios.post(config.apiHost + 'getinfobyserial',
+                {
+                    serialId: data.wid
+                });
 
             if (wRes.status != 200 || wRes.data.msg !== 'success') {
                 return emitOverChannel('Error', {
@@ -40,62 +40,54 @@ exports.init = async () => {
                     sessionId: data.sessionId
                 });
             }
-            const newChannel = await UserController.getNewChannel(data.name, workspace.queueName);
-            UserController.findOrCreate({
-                where: {
-                    email: data.email,
-                    name: data.name,
-                    sessionId: data.sessionId
-                },
-                defaults: {
-                    channel: newChannel.length > 0 ? newChannel : `customer-${new Date().getTime()}`,
-                    workspaceId: data.wid,
-                    status: 0,
-                    webPage: data.currentPage
-                }
-            }).then(async ([user, created]) => {
 
-                if (user.status > 0) {
-                    socket.join(user.channelId);
-                    const histories = await History.findAll({
-                        where: {
-                            channel: user.channelId
-                        },
-                        order: [
-                            'createdAt'
-                        ]
-                    });
-            
-                    const latest = histories.map(history => ({
-                        text: history.text,
-                        domain: history.domain,
-                        createdAt: history.createdAt
-                    }));
-            
-                    if (global.clientTimers[user.channelId]) {
-                        clearTimeout(global.clientTimers[user.channelId]);
-                        global.clientTimers[user.channelId] = null;
+            let user = null;
+            if (data.status != 'not-started') {
+                user = await User.findOne({
+                    where: {
+                        email: data.email,
+                        name: data.name,
+                        sessionId: data.sessionId
                     }
-                    return emitToSocketId(user.channelId, 'Histories', {
-                        status: 'finished',
-                        msgs: latest
-                    });
-                } else {
-                    let newUser = await createChannel(user, workspace);
-                    const plainUser = newUser.get({ plain: true });
-                    socket.join(plainUser.channelId);
-                    roomInit(socket, newUser, workspace);
+                });
+            } else {
+                const newChannel = await UserController.getNewChannel(data.name, workspace.queueName);
+                const users = await User.findOrCreate({
+                    where: {
+                        email: data.email,
+                        name: data.name,
+                        sessionId: data.sessionId
+                    },
+                    defaults: {
+                        channel: newChannel.length > 0 ? newChannel : `customer-${new Date().getTime()}`,
+                        workspaceId: data.wid,
+                        status: 0,
+                        webPage: data.currentPage
+                    }
+                });
+                if (users.length > 0) {
+                    user = await createChannel(users[0], workspace);
+                }
+            }
+
+            if (user) {
+                socket.join(user.channelId);
+                const plainUser = user.get({ plain: true });
+                roomInit(socket, user, workspace, data.status == 'started');
+                if (data.status == 'not-started') {
                     emitToSocketId(plainUser.channelId, 'Room:Created', {
                         sessionId: plainUser.sessionId,
                         channel: plainUser.channelId,
-                        id: plainUser.id
+                        id: plainUser.id,
+                        ticket: user.ticketId
                     });
                 }
-                
-            }).catch(err => {
-                console.error('error occured while adding user', err);
-                // socket.emit('')
-            });
+            } else {
+                return emitOverChannel('Error', {
+                    reason: 'wrong_workspace_id',
+                    sessionId: data.sessionId
+                });
+            }
         });
     });
 };
@@ -116,7 +108,7 @@ function createChannel(user, workspace) {
                     curName = curName.slice(0, curName.length - 1);
                     const channels = listRes.channels.sort((a, b) => (b.created - a.created));
                     const seed = curName.join('_');
-                    const lists= channels.filter(ch => (ch.name.indexOf(seed) == 0));
+                    const lists = channels.filter(ch => (ch.name.indexOf(seed) == 0));
                     const cname = getChannel(lists, plainUser.channel);
                     if (cname && cname.length > 0) {
                         user.channel = cname;
@@ -172,7 +164,7 @@ function createChannel(user, workspace) {
                 let flag = !joinedUsers.ok;
                 if (joinedUsers.ok) {
                     flag = flag || joinedUsers.members.indexOf(web.botUserId) < 0;
-                } 
+                }
 
                 if (flag) {
                     const activeRes = await web.conversations.invite({
@@ -189,14 +181,14 @@ function createChannel(user, workspace) {
                     user.active = 1;
                     await user.save();
                 }
-                
+
             }
         }
         return resolve(user);
     });
 }
 
-function getChannel (lists, cname) {
+function getChannel(lists, cname) {
     let curName = cname.split('_');
     curName = curName.slice(0, curName.length - 1);
     const curIndex = lists.findIndex(ch => (ch.name == cname));
@@ -209,78 +201,95 @@ function getChannel (lists, cname) {
     }
 }
 
-async function roomInit(socket, user, workspace) {
+async function roomInit(socket, user, workspace, refresh) {
     const plainUser = user.get({ plain: true });
     const roomId = plainUser.channelId;
 
-    sendHistories(plainUser);
+    sendHistories(plainUser, refresh);
     socket.in(`${roomId}`).on('Joined:Room', async () => {
-        // emitToSocketId(plainUser.channel, 'Error', 'Invalid Workspace Id');
+        clearClientTimer(roomId);
         sendHistories(plainUser);
         await global.slackWeb[plainUser.workspaceId].chat.postMessage({
             channel: workspace.incomeChannelId,
             text: `${plainUser.name} started the conversation on <#${plainUser.channelId}|${plainUser.channel}>.`,
             attachments: [{
                 "pretext": "Visitor Information",
-                "text": "Name: "+ plainUser.name + "\n Email: "+ plainUser.email + "\nPage: " + plainUser.webPage
+                "text": "Name: " + plainUser.name + "\n Email: " + plainUser.email + "\nPage: " + plainUser.webPage
             }]
         });
     });
 
     socket.in(`${roomId}`).on('Typing', async (message) => {
-        global.bot[plainUser.workspaceId].sendTyping(plainUser.channelId);
+        clearClientTimer(roomId);
+        if (global.bot[plainUser.workspaceId]) {
+            global.bot[plainUser.workspaceId].sendTyping(plainUser.channelId);
+        }
     })
 
     socket.in(`${roomId}`).on('Message', async (message) => {
+        clearClientTimer(roomId);
         const history = await History.create({
             text: message.message,
             channel: roomId,
             domain: 'user'
         });
-        // slackbot.postMessageToChannel(plainUser.channelId, message.message)
-        const res = await global.slackWeb[message.wid].chat.postMessage({
-            channel: plainUser.channel,
-            text: message.message
+
+        emitToSocketId(roomId, 'Message', {
+            author: '',
+            message: message.message,
+            type: '',
+            event_ts: history.createdAt,
+            ts: history.createdAt,
+            domain: 'user'
         });
-        if (res.ok) {
-            history.sent = 1;
-            history.save();
+        
 
-            let params = {
-                requestorName: user.name,
-                requestorEmail: user.email,
-                serialId: user.workspaceId,
-                content: message.message,
-                domain: 'user'
-            };
-
-            if (user.ticketId) {
-                params.ticketId = user.ticketId;
-            }
-
-            axios.post(config.apiHost + 'importticket', params)
-            .then(async (res) => {
-                if (res.data.status && !user.ticketId) {
-                    user.ticketId = res.data.ticket;
-                    await user.save();
-                    emitToSocketId(user.channelId, 'Message', {
-                        author: 'Support Man',
-                        message: `Ticket with #-${user.ticketId} is created.`,
-                        type: '',
-                        event_ts: new Date().getTime(),
-                        ts: new Date().getTime()
-                    })
-                }
-            })
-            .catch(err => {
-                console.log('api failed', err);
+        if (global.slackWeb[message.wid]) {
+            const res = await global.slackWeb[message.wid].chat.postMessage({
+                channel: plainUser.channel,
+                text: message.message
             });
-        } else {
-            console.log('error message to slack', res);
+            if (res.ok) {
+                history.sent = 1;
+                history.save();
+    
+                let params = {
+                    requestorName: user.name,
+                    requestorEmail: user.email,
+                    serialId: user.workspaceId,
+                    content: message.message,
+                    domain: 'user'
+                };
+    
+                if (user.ticketId) {
+                    params.ticketId = user.ticketId;
+                }
+    
+                axios.post(config.apiHost + 'importticket', params)
+                    .then(async (res) => {
+                        if (res.data.status && !user.ticketId) {
+                            user.ticketId = res.data.ticket;
+                            await user.save();
+                            emitToSocketId(user.channelId, 'Ticket:Create', {
+                                ticket: user.ticketId
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.log('api failed', err);
+                    });
+            } else {
+                console.log('error message to slack', res);
+            }
         }
+        
     });
 
     socket.in(`${roomId}`).on('Finished', async (message) => {
+        if (global.clientTimers[roomId]) {
+            clearTimeout(global.clientTimers[roomId]);
+            delete global.clientTimers[roomId];
+        }
         const user = await User.findOne({
             where: {
                 channelId: roomId
@@ -290,10 +299,12 @@ async function roomInit(socket, user, workspace) {
         if (user) {
             user.status = 1;
             await user.save();
-            await global.slackWeb[user.workspaceId].chat.postMessage({
-                channel: user.channelId,
-                text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
-            });
+            if (global.slackWeb[user.workspaceId]) {
+                await global.slackWeb[user.workspaceId].chat.postMessage({
+                    channel: user.channelId,
+                    text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
+                });
+            }
 
             if (user.ticketId) {
                 axios.post(config.apiHost + 'finishticket', {
@@ -303,16 +314,16 @@ async function roomInit(socket, user, workspace) {
                     domain: 'user',
                     ticketId: user.ticketId
                 })
-                .then(async (res) => {
-                    if (res.status) {
-                        console.log('ticket finished ', res.data.ticket);
-                    }
-                })
-                .catch(err => {
-                    console.log('api failed', err);
-                });
+                    .then(async (res) => {
+                        if (res.status) {
+                            console.log('ticket finished ', res.data.ticket);
+                        }
+                    })
+                    .catch(err => {
+                        console.log('api failed', err);
+                    });
             }
-            
+
         }
     });
 
@@ -321,53 +332,58 @@ async function roomInit(socket, user, workspace) {
             text: `${user.name} went offline`,
             channel: user.channelId
         });
-        global.clientTimers[roomId] = setTimeout(async () => {
-            const user = await User.findOne({
-                where: {
-                    channelId: roomId
-                }
-            });
-            if (user) {
-                user.status = 1;
-                await user.save();
-
-                await global.slackWeb[user.workspaceId].chat.postMessage({
-                    channel: user.channelId,
-                    text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
-                });
-            }
-        }, 4 * 60 * 1000);
     });
 }
 
-async function sendHistories(user) {
+async function sendHistories(user, flag = false) {
+    const histories = await History.findAll({
+        where: {
+            channel: user.channelId
+        },
+        order: [
+            'createdAt'
+        ]
+    });
+
+    const latest = histories.map(history => ({
+        text: history.text,
+        domain: history.domain,
+        createdAt: history.createdAt
+    }));
+
     if (global.clientTimers[user.channelId]) {
-        const histories = await History.findAll({
-            where: {
-                channel: user.channelId
-            },
-            order: [
-                'createdAt'
-            ]
-        });
-
-        const latest = histories.map(history => ({
-            text: history.text,
-            domain: history.domain,
-            createdAt: history.createdAt
-        }));
-
         clearTimeout(global.clientTimers[user.channelId]);
         global.clientTimers[user.channelId] = null;
-         
+    }
+
+    if (flag && user.status < 1 && global.slackWeb[user.workspaceId]) {
         await global.slackWeb[user.workspaceId].chat.postMessage({
             channel: user.channelId,
             text: `${user.name} come back online.`
         });
-
-        emitToSocketId(user.channelId, 'Histories', {
-            status: 'openning',
-            msgs: latest
-        });
     }
+
+    emitToSocketId(user.channelId, 'Histories', {
+        status: user.status > 0? 'finished': 'history',
+        msgs: latest,
+        ticket: user.ticketId
+    });
+}
+
+async function clearClientTimer(roomId) {
+    if (global.clientTimers[roomId]) {
+        clearTimeout(global.clientTimers[roomId]);
+        global.clientTimers[roomId] = null;
+    }
+    global.clientTimers[roomId] = setTimeout(() => {
+        emitToSocketId(roomId, '2MinAlert');
+        global.clientTimers[roomId] = setTimeout(() => {
+            emitToSocketId(roomId, '3MinAlert');
+            global.clientTimers[roomId] = setTimeout(() => {
+                emitToSocketId(roomId, 'Finished');
+                clearTimeout(global.clientTimers[roomId]);
+                global.clientTimers[roomId] = null;
+            }, 60 * 1000);
+        }, 60 * 1000);
+    }, 2 * 60 * 1000);
 }

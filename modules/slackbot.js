@@ -40,7 +40,8 @@ exports.init = async (workspace) => {
         message: data.text,
         type: data.type,
         event_ts: data.event_ts,
-        ts: data.ts
+        ts: data.ts,
+        domain: 'slack'
       }
       socket.emitToSocketId(data.channel, 'Message', sendData);
 
@@ -64,13 +65,9 @@ exports.init = async (workspace) => {
           if (res.data.status && !user.ticketId) {
             user.ticketId = res.data.ticket;
             await user.save();
-            emitToSocketId(user.channelId, 'Message', {
-              author: 'Support Man',
-              message: `Ticket with #-${user.ticketId} is created.`,
-              type: '',
-              event_ts: new Date().getTime(),
-              ts: new Date().getTime()
-            })
+            emitToSocketId(user.channelId, 'Ticket:Create', {
+              ticket: user.ticketId
+            });
           }
         });
     });

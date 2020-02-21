@@ -41,6 +41,7 @@ const server = http.createServer(app);
 //socket init
 global.timers = {};
 global.clientTimers = {};
+// global.noActiveTimers = {};
 global.bot = {};
 global.slackWeb = {};
 global.io = require('socket.io').listen(server);

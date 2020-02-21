@@ -5,17 +5,11 @@ $(function () {
     var chatContent = $('#chatContent');
     var input = $('#message');
     var status = $('#status');
-    var errorClosed = false;
     var msgType = "visitor";
-    var refresh = false;
-    var typing = false;
-    var sending = false;
-    var typingTimer = null;
-    var agentTypingTimer = null;
-
     var lastMessageBy = "";
     var lastTime = 0;
-    var chatStatus = ''; // 'no-support', 'not-started', 'queue', 'started'
+    var chatStatus = ''; // 'not-started', 'queued', 'started', 'finished'
+    var agentTypingTimer = null;
 
     var chatUrl = chatwidget_vars.chatUrl;
     var wid = chatwidget_vars.wid;
@@ -23,45 +17,58 @@ $(function () {
     var currentPage = chatwidget_vars.cp;
     var invalidEmailMessage = chatwidget_vars.invalidEmailMessage;
     var genericError = chatwidget_vars.genericError;
-    var standalone = chatwidget_vars.sa;
-    var mobile = chatwidget_vars.m;
     var endMessage = chatwidget_vars.endMessage;
     var timeoutMessage = chatwidget_vars.timeoutMessage;
-    var chatNotifyCountsEnable = chatwidget_vars.chatNotifyCountsEnable;
     var timeoutSeconds = chatwidget_vars.timeoutSeconds;
     var startNewMessage = chatwidget_vars.startNewMessage;
     var waitingMessage = chatwidget_vars.waitingMessage;
-    var visits = chatwidget_vars.visits;
     var widgetTitle = chatwidget_vars.widgetTitle;
-    var aid = '';
-    var role = '';
-    var ap = '';
-    var isCWActive = true;
-    var resetSocketInterval = 10 * 60000;
     var userId = null;
-    init();
-    var socket = io(chatUrl);
-    socketInit();
-    
+    var isCWActive = true;
+    var refresh = 0;
+
+    function refreshDec() {
+        var siRefresh = parseInt(localStorage.getItem('rtp_refresh_'+wid));
+        siRefresh--;
+        if (siRefresh < 0) siRefresh = 0;
+        localStorage.setItem('rtp_refresh_' + wid, siRefresh);
+    }
+
+    function refreshInc() {
+        var siRefresh = localStorage.getItem('rtp_refresh_'+wid);
+        if (siRefresh) {
+            siRefresh = parseInt(siRefresh);
+            siRefresh--;
+            if (siRefresh < 0) siRefresh = 0;
+            localStorage.setItem('rtp_refresh_' + wid, siRefresh);
+        } else {
+            localStorage.setItem('rtp_refresh_'+wid, 0);
+        }
+    }
+
     var sessionId = "";
     try {
         sessionId = localStorage.getItem("rtp_chatsid_" + wid);
         if (!sessionId || sessionId.length === 0) {
             sessionId = guid();
             localStorage.setItem("rtp_chatsid_" + wid, sessionId);
+            localStorage.setItem("rtp_refresh_" + wid, 0);
             chatStatus = localStorage.getItem("rtp_chatstatus_" + wid);
             if (!chatStatus || chatStatus.length === 0) {
                 chatStatus = "not-started";
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             }
         } else {
-            //existing chat
             chatStatus = localStorage.getItem("rtp_chatstatus_" + wid);
-            refresh = true;
+            refresh = localStorage.getItem("rtp_refresh_" + wid);
         }
     } catch (err) {
         sessionId = guid();
     }
+
+    init();
+    var socket = io(chatUrl);
+    socketInit();
     renderPans();
 
     function renderPans () {
@@ -72,12 +79,13 @@ $(function () {
             $('#message-area').hide();
             $('#form-presales').hide();
             $('.siButtonActionClose-chat').removeClass('hidden');
-        } else if (chatStatus == 'started' || chatStatus == 'queue') {
+        } else if (chatStatus != 'not-started') {
             newSubscribe();
             $('#form-presales').hide();
             $('.siButtonActionClose-chat').removeClass('hidden');
             $('#form-chat-wrap').show();
-            $('#message-area').show();
+            if (chatStatus != 'finished')
+                $('#message-area').show();
 
             $('#form-chat').show();
             $('#textarea').css({
@@ -99,29 +107,18 @@ $(function () {
         var siEmail = localStorage.getItem("rtp_email");
         if (siEmail && siEmail.length > 0) { $("#email").val(siEmail); }
         $('.slim-scroll').slimScroll({
-            height: chatwidget_vars.widgetHeight - 120,
+            height: (window.innerHeight || chatwidget_vars.widgetHeight) - 120 + 'px',
             railVisible: true,
             start: 'bottom'
         });
 
-        $('#title:not(.silc-btn-button-close)').click(function (event) {
-            parent.postMessage("siCloseWindow", "*");
-        });
-
         $('.silc-btn-button-close').click(function (e) {
-
-            if ("" != siChatStarted
-                && "timeout" !== siChatStarted) {
-                e.preventDefault();
-                e.stopPropagation();
-                $('#form-chat-wrap').hide();
-                $('#message-area').hide();
-                $('#form-chat').hide();
-                $('#form-close-chat').show();
-            }
-            else {
-                parent.postMessage("siCloseWindow", "*");
-            }
+            e.preventDefault();
+            e.stopPropagation();
+            $('#form-chat-wrap').hide();
+            $('#message-area').hide();
+            $('#form-chat').hide();
+            $('#form-close-chat').show();
         });
         if (window.self === window.top) {
             var $viewportMeta = $('meta[name="viewport"]');
@@ -131,8 +128,8 @@ $(function () {
         }
     }
 
+    // first login window
     $('#preSalesStart').click(function (event) {
-        refresh = false;
         var name = $('#name').val();
         var email = $('#email').val();
         sessionId = guid();
@@ -149,25 +146,21 @@ $(function () {
         if (genericError.length === 0) {
             vname = true;
             vphone = true;
-            vgroup = true;
         }
         
         if (vname && vemail) {
-
-            sending = true;
-            var ctime = new Date().getTime();
-
             $('button .loader').removeClass('loaded');
-            socket.emit('User:Arrived', {
-                time: ctime,
+            const param = {
                 author: author,
                 wid: wid,
                 sessionId: sessionId,
                 currentPage: currentPage,
                 name: name,
-                email: email
-            });
-            
+                email: email,
+                status: chatStatus,
+                refresh: 0
+            };
+            socket.emit('User:Arrived', param);
         } else {
             if ($('#email').is(":visible") && !validEmail(email)) {
                 $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>" + invalidEmailMessage + "</p>");
@@ -222,25 +215,29 @@ $(function () {
         } else if (json.message && json.message.length > 0) {
             $('#typingIndicator').addClass('hide');
             clearAgentTyping();
-            ap = '/images/material-person-white.png';
-            addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
+            if (json.domain == 'slack') {
+                var ap = '/images/material-person-white.png';
+                addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
+                if (!isCWActive)
+                    play_sound();
+            } else {
+                lastMessageBy = json.author;
+                addMessage(json.author, json.message, new Date(date), msgType, '', chatStatus);
+            }
         }
-        if (!isCWActive && !refresh && json.chatStatus != '' && json.chatStatus != 'ctyping' && json.chatStatus != 'ctypingoff' && json.chatStatus != 'atyping' && json.chatStatus != 'atypingoff') {
-            play_sound();
-        } else if (refresh) {
-            refresh = false;
-        }
-        // setNoResponseTimer();
     };
 
+    // socket init
     function socketInit() {
         socket.on('Room:Created', function (data) {
+            if (data.ticket) {
+                $('#title-text').html(chatwidget_vars.widgetTitle + `(${data.ticket})`);    
+            }
             chatStatus = 'started';
             localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             userId = data.id;
             socket.emit('Joined:Room');
             showMainPage();
-            setNoResponseTimer();
         });
 
         socket.on('Message', function (data) {
@@ -248,17 +245,20 @@ $(function () {
         });
 
         socket.on('NoSupport', function() {
-            if (typingTimer) {
-                clearTimeout(typingTimer);
-                typingTimer = null;
-            }
-            
             chatStatus = 'not-support';
             localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             renderPans();
         });
 
+        socket.on('Ticket:Create', function(event) {
+            $('#title-text').html(chatwidget_vars.widgetTitle + `(${event.ticket})`);
+        })
+
         socket.on('Histories', function(event) {
+            chatContent.html('');
+            if (event.ticket) {
+                $('#title-text').html(chatwidget_vars.widgetTitle + `(${event.ticket})`);
+            }
             if (event.msgs.length > 0) {
                 event.msgs.forEach(msg => {
                     if (msg.domain == 'slack') {
@@ -274,19 +274,11 @@ $(function () {
                             wid: wid,
                             sessionId: sessionId,
                             currentPage: currentPage,
-                            agentId: aid,
-                            role: role,
-                            visits: visits,
                             name: localStorage.getItem("rtp_name"),
                             email: localStorage.getItem("rtp_email"),
-                            phone: localStorage.getItem("rtp_phone"),
-                            agentPhoto: '',
-                            group: localStorage.getItem("rtp_group"),
-                            version: '1.1',
-                            consent: sessionStorage.getItem("rtp_consent"),
-                            params: sessionStorage.getItem("rtp_params")
+                            agentPhoto: ''
                         };
-                        pushl(JSON.stringify(myMsg));
+                        pushl(myMsg);
                     }
                 })
             }
@@ -295,27 +287,52 @@ $(function () {
                 addMessage('System', "This conversation is finished. Please open new!", new Date(), 
                     '', '/images/logo-white.png', 'close');
                 chatClosed();
-                    if (typingTimer) {
-                    clearTimeout(typingTimer);
-                    typingTimer = null;
-                }
-                
+            } else if (event.status == 'history') {
+                chatStatus = 'started';
+                localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             }
         })
 
         socket.on('Error', function(event) {
             if (event.reason == 'wrong_workspace_id' && event.sessionId == sessionId) {
-                chatStatus = 'notstarted';
+                chatStatus = 'not-started';
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
                 const error = 'You have a wrong workspace id now.\n Please contact our support!';
                 $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>" + error + "</p>");
                 $('#buffer').css('padding-top', '30px');
             } else if (event.reason == 'not_support' && event.sessionId == sessionId) {
+                localStorage.clear();
                 chatStatus = 'not-support';
+                localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
+                renderPans();
+            } else if (event.reason == 'not_support' && event.sessionId == sessionId) {
+                chatStatus = 'not-started';
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
                 renderPans();
             }
         })
+
+        socket.on('2MinAlert', function() {
+            const message = "We haven't here from you in some time. Are you still with us?\n"
+                + "Please respond if you are still there";
+
+            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '2minAlert');
+        });
+
+        socket.on('3MinAlert', function() {
+            const message = "We are going to have to end this chat if we dont' hear from you."
+                + "We will hae to end this chat in 1 minute.";
+            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '3minAlert');
+        });
+
+        socket.on('Finished', function() {
+            const message = "Thanks for using our system. This chat is timeout.";
+            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', 'finished');
+            socket.emit('Finished');
+            chatStatus = "finished";
+            localStorage.setItem('rtp_chatstatus_' +wid, chatStatus);
+            chatClosed();
+        });
     };
 
     input.keydown(function (e) {
@@ -323,7 +340,6 @@ $(function () {
             e.preventDefault();
             var msg = $(this).val();
             if (msg.length > 0) {
-                typing = false;
                 var ctime = new Date().getTime();
                 var msg = {
                     time: ctime,
@@ -334,19 +350,10 @@ $(function () {
                     wid: wid,
                     sessionId: sessionId,
                     currentPage: currentPage,
-                    agentId: aid,
-                    role: role,
-                    visits: visits,
                     name: localStorage.getItem("rtp_name"),
-                    email: localStorage.getItem("rtp_email"),
-                    phone: localStorage.getItem("rtp_phone"),
-                    agentPhoto: '',
-                    group: localStorage.getItem("rtp_group"),
-                    version: '1.1',
-                    consent: sessionStorage.getItem("rtp_consent"),
-                    params: sessionStorage.getItem("rtp_params")
+                    email: localStorage.getItem("rtp_email")
                 };
-                pushl(JSON.stringify(msg));
+                // pushl(msg);
                 socket.emit('Message', msg);
             }
             $(this).val('').focus();
@@ -356,30 +363,7 @@ $(function () {
         } else {
             socket.emit('Typing');
         }
-        setNoResponseTimer();
     });
-
-    function setNoResponseTimer() {
-        if (typingTimer) clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => {
-            const message = "We haven't here from you in some time. Are you still with us?\n"
-                + "Please respond if you are still there";
-
-            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '2minAlert');
-            typingTimer = setTimeout(() => {
-                const message = "We are going to have to end this chat if we dont' hear from you."
-                    + "We will hae to end this chat in 1 minute.";
-                addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '3minAlert');
-                typingTimer = setTimeout(() => {
-                    // finish the chat;
-                    const message = "Thanks for using our system. This chat is timeout.";
-                    addMessage('System', message, new Date(), 'admin', './images/logo-white.png', 'finished');
-                    socket.emit('Finished');
-                    chatClosed();
-                }, 60 * 1000);
-            }, 60 * 1000);
-        }, 2 * 60 * 1000);
-    }
 
     function setTyping() {
         clearTyping();
@@ -387,8 +371,8 @@ $(function () {
     }
 
     function clearTyping() {
-        clearTimeout(typingTimer)
-        typingTimer = null;
+        // clearTimeout(window.typingTimer)
+        // window.typingTimer = null;
     }
 
     function clearAgentTyping() {
@@ -401,12 +385,15 @@ $(function () {
     function newSubscribe() {
         var siName = localStorage.getItem("rtp_name");
         var siEmail = localStorage.getItem("rtp_email");
+        var siRefresh = localStorage.getItem("rtp_refresh_" + wid);
         socket.emit('User:Arrived', {
             wid: wid,
             sessionId: sessionId,
             currentPage: currentPage,
             name: siName,
-            email: siEmail
+            email: siEmail,
+            status: chatStatus,
+            refresh: siRefresh
         });
     }
     $('#btn-close-chat').click(function (e) {
@@ -424,10 +411,25 @@ $(function () {
         $('.siButtonActionClose-chat').show();
     });
 
+    $('#btn-continue-chat').click(function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        // chatStatus = 'queue';
+        $('#form-chat-wrap').show();
+        if (chatStatus == 'not-started' || chatStatus == 'close') {
+            $('#message-area').hide();
+        } else {
+            $('#message-area').show();
+        }
+        
+        $('#form-chat').show();
+        $('#form-close-chat').hide();
+    })
+
     $('.silc-btn-button-minimize').click(function (e) {
         e.preventDefault();
         e.stopPropagation();
-
+        
         // if ($('#form-offline-sent').is(":visible")) {
         //     $('#form-close-chat').hide();
         // } else {
@@ -457,8 +459,6 @@ $(function () {
         $('#form-chat').show();
         $('#message-area').hide();
         $('#form-close-chat').hide();
-        chatStatus = "close";
-        // $('#textarea-wrapper').hide();
         $('.siButtonActionClose-chat').show();
     }
 
@@ -543,12 +543,8 @@ $(function () {
             }
             //chatContent.append('<p class="msg-text">'+message+'</p>');
         }
-        if (chatNotifyCountsEnable == 'on') {
-            parent.postMessage("siMsg", "*");
-        }
         var scrollTo_val = $('#form-chat').prop('scrollHeight') + 'px';
         $('#form-chat').slimScroll({
-            height: 240,
             scrollTo: scrollTo_val
         });
     }
@@ -621,173 +617,18 @@ $(function () {
         document.cookie = name + "=" + value + expires + "; path=/; SameSite=None; Secure;";
     }
 
-    function pushl(message) {
-        var json = '';
-        try {
-            message = message.replace(/[\u0000-\u0019]+/g, "<br>");
-            json = JSON.parse(message);
-            if (json.chatStatus && json.chatStatus != '') {
-                siChatStarted = json.chatStatus;
-                if (json.chatStatus == 'close') {
-                    siChatStarted = '';
-                }
-            }
-            if (lastTime == json.time) {
-                return;
-            } else {
-                lastTime = json.time;
-            }
-            if (aid === '' && json.agentId !== '' && "close" !== json.chatStatus) {
-                aid = json.agentId;
-                role = json.role;
-                ap = json.agentPhoto;
-            }
-            if (json.agentPhoto && json.agentPhoto.length > 0) {
-                ap = json.agentPhoto;
-            } else if (ap === "") {
-                ap = "/images/material-person-white.png";
-            }
-
-        } catch (e) {
-            //console.log('Error: ', message);
-            return;
-        }
-        if ("notstarted" === json.chatStatus) {
-            debugger
-            chatStatus = "queued";
-            sessionStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
-            if (timeoutSeconds && timeoutSeconds.length > 0) {
-                var tsec = parseInt(timeoutSeconds) * 1000;
-                setTimeout(function () {
-                    checkAnswered()
-                }, tsec);
-            }
-
-        } else if ("active" != chatStatus && json.chatStatus == "active") {
-            //display agent header
-            status.empty();
-            if (json.agentId != '') {
-                if (json.agentPhoto && json.agentPhoto.length > 0) {
-                    ap = json.agentPhoto;
-                    $(".si-img").show();
-                    $("#si-img-img").attr("src", json.agentPhoto);
-                }
-                $('#agents').show();
-                $('.agent-name').html(json.author);
-                $('.agent-role').html(json.role);
-            }
-
-            $(".si-body").height(rsize);
-            rsize = rsize - 80;;
-            $('.slimScrollDiv #form-chat').unwrap();
-            $('.slimScrollBar, .slimScrollRail').remove();
-            var bh = (rsize - 100) + "px";
-            $('#form-chat').slimScroll({
-                height: $('#form-chat').css({
-                    'height': bh
-                }),
-                railVisible: true,
-                start: 'bottom'
-            });
-
-            chatStatus = "active";
-        } else if ("active" == chatStatus && json.chatStatus == "active" &&
-            json.agentPhoto && json.agentPhoto.length > 0 &&
-            json.agentPhoto != $("#si-img-img").attr("src")) {
-            //display agent header
-            ap = json.agentPhoto;
-            $(".si-img").show();
-            $("#si-img-img").attr("src", json.agentPhoto);
-            $('.agent-name').html(json.author);
-            $('.agent-role').html(json.role);
-
-        } else if ("close" === json.chatStatus) {
-            chatClosed();
-
-        } else if ("timeout" === json.chatStatus) {
-            chatClosed();
-
-        } else if ("wixrefresh" === json.chatStatus) {
-            refreshWix();
-        } else if ("atyping" === json.chatStatus) {
-            $('#typingIndicator').removeClass('hide');
-            clearAgentTyping();
-            if (!agentTypingTimer) {
-                agentTypingTimer = setTimeout(function () {
-                    $('#typingIndicator').addClass('hide');
-                }, 10000);
-            }
-
-
-        } else if ("atypingoff" === json.chatStatus) {
-            clearAgentTyping();
-            $('#typingIndicator').addClass('hide');
-            //typing=false;
-        }
-
-
+    function pushl(json) {
         var date = typeof (json.time) == 'string' ? parseInt(json.time) : json.time;
         if (json.message && json.message.length > 0) {
-            if (json.chatStatus === 'restart') {
-                debugger
-                chatStatus = "notstarted";
-                sessionStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
-                var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">';
-                msg += json.message;
-                msg += '</div></div></div></div><span></span></div>';
-
-                var newStatus = status.html() + msg;
-                status.html(newStatus)
-                json.message = '';
-            } else if (json.chatStatus === 'pushMessages') {
-
-                if (json.agentId != '') {
-                    status.empty();
-                    if (json.agentPhoto && json.agentPhoto.length > 0) {
-                        ap = json.agentPhoto;
-                        $(".si-img").show();
-                        $("#si-img-img").attr("src", json.agentPhoto);
-
-                    }
-                    $('#agents').show();
-                    $('.agent-name').html(json.author);
-                    $('.agent-role').html(json.role);
-
-                    $(".si-body").height(rsize);
-                    rsize = rsize - 80;;
-                    $('.slimScrollDiv #form-chat').unwrap();
-                    $('.slimScrollBar, .slimScrollRail').remove();
-                    var bh = (rsize - 120) + "px";
-                    $('#form-chat').slimScroll({
-                        height: $('#form-chat').css({
-                            'height': bh
-                        }),
-                        railVisible: true,
-                        start: 'bottom'
-                    });
-
-                    if (chatStatus === "queued") {
-                        chatStatus = "active";
-                    }
-                }
-                addPushMessages(json.message);
-
-            } else {
-                if ("close" === json.chatStatus) {
-                    json.author = "";
-                }
-                addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
-            }
-            if ("agent" == json.type || "" == json.type) {
-                $('#typingIndicator').addClass('hide');
-                //typing=false;
-            }
-
+            addMessage(json.author, json.message, new Date(date), json.type, '', json.chatStatus);
         }
-        if (!isCWActive && !refresh && json.chatStatus != '' && json.chatStatus != 'ctyping' && json.chatStatus != 'ctypingoff' && json.chatStatus != 'atyping' && json.chatStatus != 'atypingoff') {
-            play_sound();
-        } else if (refresh) {
-            refresh = false;
-        }
+        // play_sound();
+        // if (!isCWActive && !refresh && json.chatStatus != '' && json.chatStatus != 'ctyping' && json.chatStatus != 'ctypingoff' && json.chatStatus != 'atyping' && json.chatStatus != 'atypingoff') {
+        //     play_sound();
+        // } else if (refresh) {
+        //     refresh = false;
+        // }
     };
+
+    
 });
