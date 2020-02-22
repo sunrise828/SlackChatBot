@@ -73,6 +73,14 @@
   <div class="siScale" id="siWidget-chat" style="display: inherit;">
     <iframe id="si_frame" scrolling="no" width="100%" height="100%" frameborder="0" allowtransparency="true"
       src="/template.html"></iframe></div>
+  <script>
+    var eventMethod = window.addEventListener ? "addEventListener" : "attachEvent";
+    var eventer = window[eventMethod];
+    var messageEvent = eventMethod == "attachEvent" ? "onmessage" : "message";
+    eventer(messageEvent,function(e) {
+      console.log(e);
+    });
+  </script>
 </body>
 
 </html>
