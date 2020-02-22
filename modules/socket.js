@@ -72,7 +72,7 @@ exports.init = async () => {
 
             if (user) {
                 socket.join(user.channelId);
-                clearClientTimer();
+                // clearClientTimer(user.channelId);
                 const plainUser = user.get({ plain: true });
                 roomInit(socket, user, workspace, data.status == 'started');
                 if (data.status == 'not-started') {
@@ -206,10 +206,10 @@ async function roomInit(socket, user, workspace, refresh) {
     const plainUser = user.get({ plain: true });
     const roomId = plainUser.channelId;
 
-    sendHistories(plainUser, workspace, refresh);
+    await sendHistories(plainUser, workspace, refresh);
     socket.in(`${roomId}`).on('Joined:Room', async () => {
         clearClientTimer(roomId);
-        sendHistories(plainUser);
+        await sendHistories(plainUser);
         await global.slackWeb[workspace.accessToken].chat.postMessage({
             channel: workspace.incomeChannelId,
             text: `${plainUser.name} started the conversation on <#${plainUser.channelId}|${plainUser.channel}>.`,
@@ -297,7 +297,7 @@ async function roomInit(socket, user, workspace, refresh) {
             }
         });
 
-        if (user) {
+        if (user && user.status < 1) {
             user.status = 1;
             await user.save();
             if (global.slackWeb[workspace.accessToken]) {
@@ -324,51 +324,60 @@ async function roomInit(socket, user, workspace, refresh) {
                         console.log('api failed', err);
                     });
             }
-
         }
     });
 
     socket.in(`${roomId}`).on('disconnect', async (message) => {
-        global.slackWeb[workspace.accessToken].chat.postMessage({
-            text: `${user.name} went offline`,
-            channel: user.channelId
-        });
+        if (global.slackWeb[workspace.accessToken]) {
+            global.slackWeb[workspace.accessToken].chat.postMessage({
+                text: `${user.name} went offline`,
+                channel: user.channelId
+            });
+        }
     });
 }
 
-async function sendHistories(user, workspace, flag = false) {
-    const histories = await History.findAll({
-        where: {
-            channel: user.channelId
-        },
-        order: [
-            'createdAt'
-        ]
-    });
-
-    const latest = histories.map(history => ({
-        text: history.text,
-        domain: history.domain,
-        createdAt: history.createdAt
-    }));
-
-    if (global.clientTimers[user.channelId]) {
-        clearTimeout(global.clientTimers[user.channelId]);
-        global.clientTimers[user.channelId] = null;
-    }
-
-    if (flag && user.status < 1 && global.slackWeb[workspace.accessToken]) {
-        await global.slackWeb[workspace.accessToken].chat.postMessage({
-            channel: user.channelId,
-            text: `${user.name} come back online.`
+function sendHistories(user, workspace, flag = false) {
+    return new Promise(async (resolve, reject) => {
+        const histories = await History.findAll({
+            where: {
+                channel: user.channelId
+            },
+            order: [
+                'createdAt'
+            ]
         });
-    }
+    
+        const latest = histories.map(history => ({
+            text: history.text,
+            domain: history.domain,
+            createdAt: history.createdAt
+        }));
+    
+        if (user.status > 0) {
+            if (global.clientTimers[user.channelId]) {
+                clearTimeout(global.clientTimers[user.channelId]);
+                global.clientTimers[user.channelId] = null;
+            }
+        } else {
+            clearClientTimer(user.channelId);
+        }        
+    
+        if (flag && user.status < 1 && global.slackWeb[workspace.accessToken]) {
+            await global.slackWeb[workspace.accessToken].chat.postMessage({
+                channel: user.channelId,
+                text: `${user.name} come back online.`
+            });
+        }
+    
+        emitToSocketId(user.channelId, 'Histories', {
+            status: user.status > 0? 'finished': 'history',
+            msgs: latest,
+            ticket: user.ticketId
+        });
 
-    emitToSocketId(user.channelId, 'Histories', {
-        status: user.status > 0? 'finished': 'history',
-        msgs: latest,
-        ticket: user.ticketId
-    });
+        resolve();
+    });    
 }
 
 async function clearClientTimer(roomId) {
@@ -384,7 +393,7 @@ async function clearClientTimer(roomId) {
                 emitToSocketId(roomId, 'Finished');
                 clearTimeout(global.clientTimers[roomId]);
                 global.clientTimers[roomId] = null;
-            }, 60 * 1000);
-        }, 60 * 1000);
-    }, 2 * 60 * 1000);
+            }, 2 * 60 * 1000);
+        }, 2 * 60 * 1000);
+    }, 2 * 60 * 1000);    
 }

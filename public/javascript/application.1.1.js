@@ -26,6 +26,7 @@ $(function () {
     var userId = null;
     var isCWActive = true;
     var sessionId = "";
+    var socket = null;
     try {
         sessionId = localStorage.getItem("rtp_chatsid_" + wid);
         if (!sessionId || sessionId.length === 0) {
@@ -45,8 +46,6 @@ $(function () {
     }
 
     init();
-    var socket = io(chatUrl);
-    socketInit();
     renderPans();
 
     function renderPans () {
@@ -88,6 +87,10 @@ $(function () {
     }
 
     function init() {
+        if (chatStatus != 'not-started') {
+            socket = io(chatUrl);
+            socketInit();
+        }
         parent.postMessage(chatStatus == 'not-started'? 'siNew': 'siRefresh', '*');
         var siName = localStorage.getItem("rtp_name");
         if (siName && siName.length > 0) { $("#name").val(siName); }
@@ -147,7 +150,13 @@ $(function () {
                 status: chatStatus,
                 refresh: 0
             };
-            socket.emit('User:Arrived', param);
+            if (socket) {
+                socket.emit('User:Arrived', param);
+            } else {
+                socket = io(chatUrl);
+                socketInit();
+                socket.emit('User:Arrived', param);
+            }
         } else {
             if ($('#email').is(":visible") && !validEmail(email)) {
                 $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>" + invalidEmailMessage + "</p>");
@@ -320,8 +329,8 @@ $(function () {
         });
 
         socket.on('3MinAlert', function() {
-            const message = "We are going to have to end this chat if we dont' hear from you."
-                + "We will hae to end this chat in 1 minute.";
+            const message = "We are going to have to end this chat if we don't hear from you."
+                + "We will have to end this chat in 1 minute.";
             addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '3minAlert');
         });
 
@@ -331,6 +340,8 @@ $(function () {
             socket.emit('Finished');
             chatStatus = "finished";
             localStorage.setItem('rtp_chatstatus_' +wid, chatStatus);
+            // socket.disconnect();
+            // socket = null;
             chatClosed();
         });
     };
@@ -400,9 +411,10 @@ $(function () {
         e.preventDefault();
         e.stopPropagation();
         socket.emit('Finished');
-        localStorage.clear();
-        sessionId = guid();
-        localStorage.setItem('rtp_chatsid_' + wid, sessionId);
+        chatStatus = 'not-started';
+        localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
+        socket.disconnect();
+        socket = null;
         $('#form-close-chat').hide()
         $('#form-presales').show();
         $('#form-chat-wrap').hide();
@@ -446,7 +458,7 @@ $(function () {
     });
 
     $('.silc-btn-button-close').click(function (e) {
-        if ("notstarted" !== chatStatus) {
+        if ("not-started" !== chatStatus) {
             e.preventDefault();
             e.stopPropagation();
             $('#form-chat-wrap').hide();
