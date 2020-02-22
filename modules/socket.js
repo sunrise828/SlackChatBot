@@ -96,11 +96,11 @@ function createChannel(user, workspace) {
     return new Promise(async (resolve, reject) => {
         const plainUser = user.get({ plain: true });
         const flag = await slackbot.init({
-            id: plainUser.workspaceId,
+            id: workspace.accessToken,
             ...workspace
         });
         if (flag) {
-            const web = global.slackWeb[plainUser.workspaceId];
+            const web = global.slackWeb[workspace.accessToken];
             if (!plainUser.channelId || plainUser.channelId.length <= 0) {
                 const listRes = await web.conversations.list();
                 if (listRes.ok) {
@@ -205,11 +205,11 @@ async function roomInit(socket, user, workspace, refresh) {
     const plainUser = user.get({ plain: true });
     const roomId = plainUser.channelId;
 
-    sendHistories(plainUser, refresh);
+    sendHistories(plainUser, workspace, refresh);
     socket.in(`${roomId}`).on('Joined:Room', async () => {
         clearClientTimer(roomId);
         sendHistories(plainUser);
-        await global.slackWeb[plainUser.workspaceId].chat.postMessage({
+        await global.slackWeb[workspace.accessToken].chat.postMessage({
             channel: workspace.incomeChannelId,
             text: `${plainUser.name} started the conversation on <#${plainUser.channelId}|${plainUser.channel}>.`,
             attachments: [{
@@ -221,8 +221,8 @@ async function roomInit(socket, user, workspace, refresh) {
 
     socket.in(`${roomId}`).on('Typing', async (message) => {
         clearClientTimer(roomId);
-        if (global.bot[plainUser.workspaceId]) {
-            global.bot[plainUser.workspaceId].sendTyping(plainUser.channelId);
+        if (global.bot[workspace.accessToken]) {
+            global.bot[workspace.accessToken].sendTyping(plainUser.channelId);
         }
     })
 
@@ -244,8 +244,8 @@ async function roomInit(socket, user, workspace, refresh) {
         });
         
 
-        if (global.slackWeb[message.wid]) {
-            const res = await global.slackWeb[message.wid].chat.postMessage({
+        if (global.slackWeb[workspace.accessToken]) {
+            const res = await global.slackWeb[workspace.accessToken].chat.postMessage({
                 channel: plainUser.channel,
                 text: message.message
             });
@@ -299,8 +299,8 @@ async function roomInit(socket, user, workspace, refresh) {
         if (user) {
             user.status = 1;
             await user.save();
-            if (global.slackWeb[user.workspaceId]) {
-                await global.slackWeb[user.workspaceId].chat.postMessage({
+            if (global.slackWeb[workspace.accessToken]) {
+                await global.slackWeb[workspace.accessToken].chat.postMessage({
                     channel: user.channelId,
                     text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
                 });
@@ -328,14 +328,14 @@ async function roomInit(socket, user, workspace, refresh) {
     });
 
     socket.in(`${roomId}`).on('disconnect', async (message) => {
-        global.slackWeb[user.workspaceId].chat.postMessage({
+        global.slackWeb[workspace.accessToken].chat.postMessage({
             text: `${user.name} went offline`,
             channel: user.channelId
         });
     });
 }
 
-async function sendHistories(user, flag = false) {
+async function sendHistories(user, workspace, flag = false) {
     const histories = await History.findAll({
         where: {
             channel: user.channelId
@@ -356,8 +356,8 @@ async function sendHistories(user, flag = false) {
         global.clientTimers[user.channelId] = null;
     }
 
-    if (flag && user.status < 1 && global.slackWeb[user.workspaceId]) {
-        await global.slackWeb[user.workspaceId].chat.postMessage({
+    if (flag && user.status < 1 && global.slackWeb[workspace.accessToken]) {
+        await global.slackWeb[workspace.accessToken].chat.postMessage({
             channel: user.channelId,
             text: `${user.name} come back online.`
         });
