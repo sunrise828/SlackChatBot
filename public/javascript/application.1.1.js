@@ -25,27 +25,6 @@ $(function () {
     var widgetTitle = chatwidget_vars.widgetTitle;
     var userId = null;
     var isCWActive = true;
-    var refresh = 0;
-
-    function refreshDec() {
-        var siRefresh = parseInt(localStorage.getItem('rtp_refresh_'+wid));
-        siRefresh--;
-        if (siRefresh < 0) siRefresh = 0;
-        localStorage.setItem('rtp_refresh_' + wid, siRefresh);
-    }
-
-    function refreshInc() {
-        var siRefresh = localStorage.getItem('rtp_refresh_'+wid);
-        if (siRefresh) {
-            siRefresh = parseInt(siRefresh);
-            siRefresh--;
-            if (siRefresh < 0) siRefresh = 0;
-            localStorage.setItem('rtp_refresh_' + wid, siRefresh);
-        } else {
-            localStorage.setItem('rtp_refresh_'+wid, 0);
-        }
-    }
-
     var sessionId = "";
     try {
         sessionId = localStorage.getItem("rtp_chatsid_" + wid);
@@ -60,7 +39,6 @@ $(function () {
             }
         } else {
             chatStatus = localStorage.getItem("rtp_chatstatus_" + wid);
-            refresh = localStorage.getItem("rtp_refresh_" + wid);
         }
     } catch (err) {
         sessionId = guid();
@@ -99,6 +77,14 @@ $(function () {
             }
             loadEmoji();
         }
+        //  else if (chatStatus == 'not-started') {
+        //     $('#title-text').html(widgetTitle);
+        //     $('.no-support').hide();
+        //     $('#wrapper').show();
+        //     $('#form-presales').show();
+        //     $('.siButtonActionClose-chat').addClass('hidden');
+        //     $('#form-chat-wrap').hide();
+        // }
     }
 
     function init() {
@@ -174,6 +160,7 @@ $(function () {
     });
 
     function showMainPage() {
+        $('button .loader').addClass('loaded');
         $('#form-presales').hide();
         $("#chatContent").html('');
         $('#form-chat-wrap').show();
@@ -228,6 +215,18 @@ $(function () {
         }
     };
 
+    $('#render_try').click(function() {
+        chatStatus = 'not-started';
+        localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
+        $('button .loader').addClass('loaded');
+        $('#title-text').html(widgetTitle);
+        $('.no-support').hide();
+        $('#wrapper').show();
+        $('#form-presales').show();
+        $('.siButtonActionClose-chat').addClass('hidden');
+        $('#form-chat-wrap').hide();
+    });
+
     // socket init
     function socketInit() {
         socket.on('Room:Created', function (data) {
@@ -256,6 +255,7 @@ $(function () {
         })
 
         socket.on('Histories', function(event) {
+            $('button .loader').removeClass('loaded');
             chatContent.html('');
             if (event.ticket) {
                 $('#title-text').html(chatwidget_vars.widgetTitle + `(${event.ticket})`);
@@ -305,12 +305,11 @@ $(function () {
                 localStorage.clear();
                 chatStatus = 'not-support';
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
-                renderPans();
             } else if (event.reason == 'not_support' && event.sessionId == sessionId) {
                 chatStatus = 'not-started';
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
-                renderPans();
             }
+            renderPans();
         })
 
         socket.on('2MinAlert', function() {
@@ -409,7 +408,10 @@ $(function () {
         $('#form-chat-wrap').hide();
         $('#message-area').hide();
         $('#form-chat').hide();
-        $('.siButtonActionClose-chat').show();
+        $('#title-text').html(widgetTitle);
+        $('.siButtonActionClose-chat').hide();
+        $('button .loader').addClass('loaded');
+
     });
 
     $('#btn-continue-chat').click(function (e) {

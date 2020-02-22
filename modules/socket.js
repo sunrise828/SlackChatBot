@@ -72,6 +72,7 @@ exports.init = async () => {
 
             if (user) {
                 socket.join(user.channelId);
+                clearClientTimer();
                 const plainUser = user.get({ plain: true });
                 roomInit(socket, user, workspace, data.status == 'started');
                 if (data.status == 'not-started') {
