@@ -102,6 +102,7 @@ $(function () {
     }
 
     function init() {
+        parent.postMessage(chatStatus == 'not-started'? 'siNew': 'siRefresh', '*');
         var siName = localStorage.getItem("rtp_name");
         if (siName && siName.length > 0) { $("#name").val(siName); }
         var siEmail = localStorage.getItem("rtp_email");

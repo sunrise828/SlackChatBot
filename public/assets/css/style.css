@@ -227,7 +227,7 @@ input.text {
 }
 
 #body-inner {
-    overflow: auto;
+    overflow: hidden;
     position: relative;
 }
 
