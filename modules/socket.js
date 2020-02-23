@@ -296,7 +296,7 @@ async function roomInit(socket, user, workspace, refresh) {
                 channelId: roomId
             }
         });
-
+        emitToSocketId(roomId, 'Finished', {status: message.status});
         if (user && user.status < 1) {
             user.status = 1;
             await user.save();
@@ -324,6 +324,8 @@ async function roomInit(socket, user, workspace, refresh) {
                         console.log('api failed', err);
                     });
             }
+
+            
         }
     });
 
@@ -390,7 +392,7 @@ async function clearClientTimer(roomId) {
         global.clientTimers[roomId] = setTimeout(() => {
             emitToSocketId(roomId, '3MinAlert');
             global.clientTimers[roomId] = setTimeout(() => {
-                emitToSocketId(roomId, 'Finished');
+                emitToSocketId(roomId, '4MinAlert');
                 clearTimeout(global.clientTimers[roomId]);
                 global.clientTimers[roomId] = null;
             }, 2 * 60 * 1000);

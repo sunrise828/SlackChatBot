@@ -334,15 +334,31 @@ $(function () {
             addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '3minAlert');
         });
 
-        socket.on('Finished', function() {
+        socket.on('4MinAlert', function() {
             const message = "Thanks for using our system. This chat is timeout.";
-            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', 'finished');
-            socket.emit('Finished');
+                + "We will have to end this chat in 1 minute.";
+            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '4minAlert');
+            socket.emit('Finished', {status: 'finished'});
             chatStatus = "finished";
             localStorage.setItem('rtp_chatstatus_' +wid, chatStatus);
-            // socket.disconnect();
-            // socket = null;
             chatClosed();
+        });
+
+        socket.on('Finished', function(event) {
+            if (event.status == 'closed') {
+                chatStatus = 'not-started';
+                localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
+                socket.disconnect();
+                socket = null;
+                $('#form-close-chat').hide()
+                $('#form-presales').show();
+                $('#form-chat-wrap').hide();
+                $('#message-area').hide();
+                $('#form-chat').hide();
+                $('#title-text').html(widgetTitle);
+                $('.siButtonActionClose-chat').hide();
+                $('button .loader').addClass('loaded');
+            }
         });
     };
 
@@ -410,19 +426,19 @@ $(function () {
     $('#btn-close-chat').click(function (e) {
         e.preventDefault();
         e.stopPropagation();
-        socket.emit('Finished');
-        chatStatus = 'not-started';
-        localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
-        socket.disconnect();
-        socket = null;
-        $('#form-close-chat').hide()
-        $('#form-presales').show();
-        $('#form-chat-wrap').hide();
-        $('#message-area').hide();
-        $('#form-chat').hide();
-        $('#title-text').html(widgetTitle);
-        $('.siButtonActionClose-chat').hide();
-        $('button .loader').addClass('loaded');
+        socket.emit('Finished', {status: 'closed'});
+        // chatStatus = 'not-started';
+        // localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
+        // socket.disconnect();
+        // socket = null;
+        // $('#form-close-chat').hide()
+        // $('#form-presales').show();
+        // $('#form-chat-wrap').hide();
+        // $('#message-area').hide();
+        // $('#form-chat').hide();
+        // $('#title-text').html(widgetTitle);
+        // $('.siButtonActionClose-chat').hide();
+        // $('button .loader').addClass('loaded');
 
     });
 
