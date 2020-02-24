@@ -72,7 +72,7 @@ exports.init = async () => {
 
             if (user) {
                 socket.join(user.channelId);
-                clearClientTimer();
+                clearClientTimer(user.channelId, workspace);
                 const plainUser = user.get({ plain: true });
                 roomInit(socket, user, workspace, data.status == 'started');
                 if (data.status == 'not-started') {
@@ -208,7 +208,7 @@ async function roomInit(socket, user, workspace, refresh) {
 
     sendHistories(plainUser, workspace, refresh);
     socket.in(`${roomId}`).on('Joined:Room', async () => {
-        clearClientTimer(roomId);
+        clearClientTimer(roomId, workspace);
         sendHistories(plainUser);
         await global.slackWeb[workspace.accessToken].chat.postMessage({
             channel: workspace.incomeChannelId,
@@ -221,14 +221,14 @@ async function roomInit(socket, user, workspace, refresh) {
     });
 
     socket.in(`${roomId}`).on('Typing', async (message) => {
-        clearClientTimer(roomId);
+        clearClientTimer(roomId, workspace);
         if (global.bot[workspace.accessToken]) {
             global.bot[workspace.accessToken].sendTyping(plainUser.channelId);
         }
     })
 
     socket.in(`${roomId}`).on('Message', async (message) => {
-        clearClientTimer(roomId);
+        clearClientTimer(roomId, workspace);
         const history = await History.create({
             text: message.message,
             channel: roomId,
@@ -291,41 +291,7 @@ async function roomInit(socket, user, workspace, refresh) {
             clearTimeout(global.clientTimers[roomId]);
             delete global.clientTimers[roomId];
         }
-        const user = await User.findOne({
-            where: {
-                channelId: roomId
-            }
-        });
-
-        if (user) {
-            user.status = 1;
-            await user.save();
-            if (global.slackWeb[workspace.accessToken]) {
-                await global.slackWeb[workspace.accessToken].chat.postMessage({
-                    channel: user.channelId,
-                    text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
-                });
-            }
-
-            if (user.ticketId) {
-                axios.post(config.apiHost + 'finishticket', {
-                    requestorName: user.name,
-                    requestorEmail: user.email,
-                    serialId: user.workspaceId,
-                    domain: 'user',
-                    ticketId: user.ticketId
-                })
-                    .then(async (res) => {
-                        if (res.status) {
-                            console.log('ticket finished ', res.data.ticket);
-                        }
-                    })
-                    .catch(err => {
-                        console.log('api failed', err);
-                    });
-            }
-
-        }
+        finishChannel(roomId, workspace);
     });
 
     socket.in(`${roomId}`).on('disconnect', async (message) => {
@@ -371,7 +337,7 @@ async function sendHistories(user, workspace, flag = false) {
     });
 }
 
-async function clearClientTimer(roomId) {
+async function clearClientTimer(roomId, workspace) {
     if (global.clientTimers[roomId]) {
         clearTimeout(global.clientTimers[roomId]);
         global.clientTimers[roomId] = null;
@@ -383,8 +349,47 @@ async function clearClientTimer(roomId) {
             global.clientTimers[roomId] = setTimeout(() => {
                 emitToSocketId(roomId, 'Finished');
                 clearTimeout(global.clientTimers[roomId]);
-                global.clientTimers[roomId] = null;
+                delete global.clientTimers[roomId];
+                finishChannel(roomId, workspace);
             }, 60 * 1000);
         }, 60 * 1000);
     }, 2 * 60 * 1000);
+}
+
+async function finishChannel(roomId, workspace) {
+    const user = await User.findOne({
+        where: {
+            channelId: roomId
+        }
+    });
+
+    if (user) {
+        user.status = 1;
+        await user.save();
+        if (global.slackWeb[workspace.accessToken]) {
+            await global.slackWeb[workspace.accessToken].chat.postMessage({
+                channel: user.channelId,
+                text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
+            });
+        }
+
+        if (user.ticketId) {
+            axios.post(config.apiHost + 'finishticket', {
+                requestorName: user.name,
+                requestorEmail: user.email,
+                serialId: user.workspaceId,
+                domain: 'user',
+                ticketId: user.ticketId
+            })
+                .then(async (res) => {
+                    if (res.status) {
+                        console.log('ticket finished ', res.data.ticket);
+                    }
+                })
+                .catch(err => {
+                    console.log('api failed', err);
+                });
+        }
+
+    }
 }
