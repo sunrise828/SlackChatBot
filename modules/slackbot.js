@@ -60,6 +60,7 @@ exports.init = async (workspace) => {
       if (user.ticketId) {
         params.ticketId = user.ticketId;
       }
+      console.log('params', params);
       axios.post(config.apiHost + 'importticket', params)
         .then(async (res) => {
           console.log('api called', res.data);
