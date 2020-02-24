@@ -60,7 +60,7 @@ exports.init = async (workspace) => {
       if (user.ticketId) {
         params.ticketId = user.ticketId;
       }
-      axios.post(config.apiHost + 'importticket')
+      axios.post(config.apiHost + 'importticket', params)
         .then(async res => {
           if (res.data.status && !user.ticketId) {
             user.ticketId = res.data.ticket;
