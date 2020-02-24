@@ -267,6 +267,7 @@ async function roomInit(socket, user, workspace, refresh) {
 
                 axios.post(config.apiHost + 'importticket', params)
                     .then(async (res) => {
+                        console.log('ticket id', res.data);
                         if (res.data.status && !user.ticketId) {
                             user.ticketId = res.data.ticket;
                             await user.save();

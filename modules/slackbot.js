@@ -62,7 +62,7 @@ exports.init = async (workspace) => {
       }
       axios.post(config.apiHost + 'importticket', params)
         .then(async (res) => {
-          console.log('api called', res);
+          console.log('api called', res.data);
           if (res.data.status && !user.ticketId) {
             user.ticketId = res.data.ticket;
             await user.save();
