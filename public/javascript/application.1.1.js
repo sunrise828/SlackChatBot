@@ -240,7 +240,7 @@ $(function () {
     function socketInit() {
         socket.on('Room:Created', function (data) {
             if (data.ticket) {
-                $('#title-text').html(chatwidget_vars.widgetTitle + `(${data.ticket})`);
+                $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${data.ticket})`);
             }
             chatStatus = 'started';
             localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
@@ -260,14 +260,14 @@ $(function () {
         });
 
         socket.on('Ticket:Create', function (event) {
-            $('#title-text').html(chatwidget_vars.widgetTitle + `(${event.ticket})`);
+            $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
         })
 
         socket.on('Histories', function (event) {
             $('button .loader').removeClass('loaded');
             chatContent.html('');
             if (event.ticket) {
-                $('#title-text').html(chatwidget_vars.widgetTitle + `(${event.ticket})`);
+                $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
             }
             if (event.msgs.length > 0) {
                 event.msgs.forEach(msg => {
