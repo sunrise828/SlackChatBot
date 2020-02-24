@@ -26,6 +26,7 @@ $(function () {
     var userId = null;
     var isCWActive = true;
     var sessionId = "";
+    var socket = null;
     try {
         sessionId = localStorage.getItem("rtp_chatsid_" + wid);
         if (!sessionId || sessionId.length === 0) {
@@ -45,11 +46,9 @@ $(function () {
     }
 
     init();
-    var socket = io(chatUrl);
-    socketInit();
     renderPans();
 
-    function renderPans () {
+    function renderPans() {
         $('button .loader').addClass('loaded');
         if (chatStatus == 'not-support') {
             $('.no-support').show();
@@ -88,7 +87,11 @@ $(function () {
     }
 
     function init() {
-        parent.postMessage(chatStatus == 'not-started'? 'siNew': 'siRefresh', '*');
+        if (chatStatus != 'not-started') {
+            socket = io(chatUrl);
+            socketInit();
+        }
+        parent.postMessage(chatStatus == 'not-started' ? 'siNew' : 'siRefresh', '*');
         var siName = localStorage.getItem("rtp_name");
         if (siName && siName.length > 0) { $("#name").val(siName); }
         var siEmail = localStorage.getItem("rtp_email");
@@ -134,7 +137,7 @@ $(function () {
             vname = true;
             vphone = true;
         }
-        
+
         if (vname && vemail) {
             $('button .loader').removeClass('loaded');
             const param = {
@@ -147,7 +150,13 @@ $(function () {
                 status: chatStatus,
                 refresh: 0
             };
-            socket.emit('User:Arrived', param);
+            if (socket) {
+                socket.emit('User:Arrived', param);
+            } else {
+                socket = io(chatUrl);
+                socketInit();
+                socket.emit('User:Arrived', param);
+            }
         } else {
             if ($('#email').is(":visible") && !validEmail(email)) {
                 $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>" + invalidEmailMessage + "</p>");
@@ -196,7 +205,7 @@ $(function () {
             $('#typingIndicator').removeClass('hide');
             clearAgentTyping();
             if (!agentTypingTimer) {
-                agentTypingTimer = setTimeout(function (){
+                agentTypingTimer = setTimeout(function () {
                     $('#typingIndicator').addClass('hide');
                 }, 5000);
             }
@@ -215,7 +224,7 @@ $(function () {
         }
     };
 
-    $('#render_try').click(function() {
+    $('#render_try').click(function () {
         chatStatus = 'not-started';
         localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
         $('button .loader').addClass('loaded');
@@ -231,7 +240,7 @@ $(function () {
     function socketInit() {
         socket.on('Room:Created', function (data) {
             if (data.ticket) {
-                $('#title-text').html(chatwidget_vars.widgetTitle + `(${data.ticket})`);    
+                $('#title-text').html(chatwidget_vars.widgetTitle + `(${data.ticket})`);
             }
             chatStatus = 'started';
             localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
@@ -244,17 +253,17 @@ $(function () {
             onMessage(data);
         });
 
-        socket.on('NoSupport', function() {
+        socket.on('NoSupport', function () {
             chatStatus = 'not-support';
             localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             renderPans();
         });
 
-        socket.on('Ticket:Create', function(event) {
+        socket.on('Ticket:Create', function (event) {
             $('#title-text').html(chatwidget_vars.widgetTitle + `(${event.ticket})`);
         })
 
-        socket.on('Histories', function(event) {
+        socket.on('Histories', function (event) {
             $('button .loader').removeClass('loaded');
             chatContent.html('');
             if (event.ticket) {
@@ -263,8 +272,8 @@ $(function () {
             if (event.msgs.length > 0) {
                 event.msgs.forEach(msg => {
                     if (msg.domain == 'slack') {
-                        addMessage('Support Man', msg.text, new Date(msg.createdAt), 
-                        '', '/images/material-person-white.png', 'queue');
+                        addMessage('Support Man', msg.text, new Date(msg.createdAt),
+                            '', '/images/material-person-white.png', 'queue');
                     } else {
                         var myMsg = {
                             time: new Date(msg.createdAt).getTime(),
@@ -285,7 +294,7 @@ $(function () {
             }
 
             if (event.status == 'finished') {
-                addMessage('System', "This conversation is finished. Please open new!", new Date(), 
+                addMessage('System', "This conversation is finished. Please open new!", new Date(),
                     '', '/images/logo-white.png', 'close');
                 chatClosed();
             } else if (event.status == 'history') {
@@ -294,7 +303,7 @@ $(function () {
             }
         })
 
-        socket.on('Error', function(event) {
+        socket.on('Error', function (event) {
             if (event.reason == 'wrong_workspace_id' && event.sessionId == sessionId) {
                 chatStatus = 'not-started';
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
@@ -312,26 +321,42 @@ $(function () {
             renderPans();
         })
 
-        socket.on('2MinAlert', function() {
+        socket.on('2MinAlert', function () {
             const message = "We haven't here from you in some time. Are you still with us?\n"
                 + "Please respond if you are still there";
 
             addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '2minAlert');
         });
 
-        socket.on('3MinAlert', function() {
-            const message = "We are going to have to end this chat if we dont' hear from you."
-                + "We will hae to end this chat in 1 minute.";
+        socket.on('3MinAlert', function () {
+            const message = "We are going to have to end this chat if we don't hear from you."
+                + "We will have to end this chat in 1 minute.";
             addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '3minAlert');
         });
 
-        socket.on('Finished', function() {
+        socket.on('4MinAlert', function () {
             const message = "Thanks for using our system. This chat is timeout.";
-            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', 'finished');
-            socket.emit('Finished');
+            + "We will have to end this chat in 1 minute.";
+            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '4minAlert');
+            // socket.emit('Finished', {status: 'finished'});
             chatStatus = "finished";
-            localStorage.setItem('rtp_chatstatus_' +wid, chatStatus);
+            localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
             chatClosed();
+        });
+
+        socket.on('Finished', function (event) {
+            chatStatus = 'not-started';
+            localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
+            socket.disconnect();
+            socket = null;
+            $('#form-close-chat').hide()
+            $('#form-presales').show();
+            $('#form-chat-wrap').hide();
+            $('#message-area').hide();
+            $('#form-chat').hide();
+            $('#title-text').html(widgetTitle);
+            $('.siButtonActionClose-chat').hide();
+            $('button .loader').addClass('loaded');
         });
     };
 
@@ -399,10 +424,12 @@ $(function () {
     $('#btn-close-chat').click(function (e) {
         e.preventDefault();
         e.stopPropagation();
-        socket.emit('Finished');
-        localStorage.clear();
-        sessionId = guid();
-        localStorage.setItem('rtp_chatsid_' + wid, sessionId);
+        console.log(chatStatus);
+        socket.emit('Finished', { status: 'closed' });
+        chatStatus = 'not-started';
+        localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
+        socket.disconnect();
+        socket = null;
         $('#form-close-chat').hide()
         $('#form-presales').show();
         $('#form-chat-wrap').hide();
@@ -424,7 +451,7 @@ $(function () {
         } else {
             $('#message-area').show();
         }
-        
+
         $('#form-chat').show();
         $('#form-close-chat').hide();
     })
@@ -432,7 +459,7 @@ $(function () {
     $('.silc-btn-button-minimize').click(function (e) {
         e.preventDefault();
         e.stopPropagation();
-        
+
         // if ($('#form-offline-sent').is(":visible")) {
         //     $('#form-close-chat').hide();
         // } else {
@@ -446,7 +473,7 @@ $(function () {
     });
 
     $('.silc-btn-button-close').click(function (e) {
-        if ("notstarted" !== chatStatus) {
+        if ("not-started" !== chatStatus) {
             e.preventDefault();
             e.stopPropagation();
             $('#form-chat-wrap').hide();
@@ -456,7 +483,7 @@ $(function () {
         }
 
     });
-    
+
     function chatClosed() {
         $('#form-chat-wrap').show();
         $('#form-chat').show();
@@ -633,5 +660,5 @@ $(function () {
         // }
     };
 
-    
+
 });
