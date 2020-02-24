@@ -46,7 +46,9 @@ exports.init = async (workspace) => {
       socket.emitToSocketId(data.channel, 'Message', sendData);
 
       const user = await User.findOne({
-        channelId: data.channel
+        where: {
+          channelId: data.channel
+        }
       });
 
       let params = {

@@ -51,12 +51,14 @@ $(function () {
     function renderPans() {
         $('button .loader').addClass('loaded');
         if (chatStatus == 'not-support') {
+            $('.container-fluid.loader').hide();
             $('.no-support').show();
             $('#wrapper').hide();
             $('#message-area').hide();
             $('#form-presales').show();
             $('.siButtonActionClose-chat').hide();
         } else if (chatStatus != 'not-started') {
+            $('.container-fluid.loader').hide();
             newSubscribe();
             $('#form-presales').hide();
             $('.siButtonActionClose-chat').show();
@@ -75,7 +77,14 @@ $(function () {
                 $('#message').addClass('message_ios');
             }
             loadEmoji();
-        }        
+        } else if (chatStatus == 'not-started') {
+            $('.container-fluid.loader').hide();
+            $('#form-presales').show();
+            $('.siButtonActionClose-chat').hide();
+            $('#form-chat-wrap').hide();
+            $('#message-area').hide();
+            $('#form-chat').hide();
+        }       
     }
 
     function init() {
@@ -301,6 +310,7 @@ $(function () {
         })
 
         socket.on('Error', function (event) {
+            $('.container-fluid.loader').hide();
             if (event.reason == 'wrong_workspace_id' && event.sessionId == sessionId) {
                 chatStatus = 'not-started';
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
@@ -427,6 +437,7 @@ $(function () {
         localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
         socket.disconnect();
         socket = null;
+        $('#errorMsg').html('');
         $('#form-close-chat').hide()
         $('#form-presales').show();
         $('#form-chat-wrap').hide();
