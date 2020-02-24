@@ -54,12 +54,12 @@ $(function () {
             $('.no-support').show();
             $('#wrapper').hide();
             $('#message-area').hide();
-            $('#form-presales').hide();
-            $('.siButtonActionClose-chat').removeClass('hidden');
+            $('#form-presales').show();
+            $('.siButtonActionClose-chat').hide();
         } else if (chatStatus != 'not-started') {
             newSubscribe();
             $('#form-presales').hide();
-            $('.siButtonActionClose-chat').removeClass('hidden');
+            $('.siButtonActionClose-chat').show();
             $('#form-chat-wrap').show();
             if (chatStatus != 'finished')
                 $('#message-area').show();
@@ -75,15 +75,7 @@ $(function () {
                 $('#message').addClass('message_ios');
             }
             loadEmoji();
-        }
-        //  else if (chatStatus == 'not-started') {
-        //     $('#title-text').html(widgetTitle);
-        //     $('.no-support').hide();
-        //     $('#wrapper').show();
-        //     $('#form-presales').show();
-        //     $('.siButtonActionClose-chat').addClass('hidden');
-        //     $('#form-chat-wrap').hide();
-        // }
+        }        
     }
 
     function init() {
@@ -140,6 +132,7 @@ $(function () {
 
         if (vname && vemail) {
             $('button .loader').removeClass('loaded');
+            $('.siButtonActionClose-chat').show();
             const param = {
                 author: author,
                 wid: wid,
@@ -232,13 +225,14 @@ $(function () {
         $('.no-support').hide();
         $('#wrapper').show();
         $('#form-presales').show();
-        $('.siButtonActionClose-chat').addClass('hidden');
+        $('.siButtonActionClose-chat').hide();
         $('#form-chat-wrap').hide();
     });
 
     // socket init
     function socketInit() {
         socket.on('Room:Created', function (data) {
+            $('.container-fluid.loader').show();
             if (data.ticket) {
                 $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${data.ticket})`);
             }
@@ -264,7 +258,9 @@ $(function () {
         })
 
         socket.on('Histories', function (event) {
+            $('.container-fluid.loader').hide();            
             $('button .loader').removeClass('loaded');
+            $('.siButtonActionClose-chat').show();
             chatContent.html('');
             if (event.ticket) {
                 $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
@@ -297,6 +293,7 @@ $(function () {
                 addMessage('System', "This conversation is finished. Please open new!", new Date(),
                     '', '/images/logo-white.png', 'close');
                 chatClosed();
+                $('.siButtonActionClose-chat').show();
             } else if (event.status == 'history') {
                 chatStatus = 'started';
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
@@ -355,7 +352,6 @@ $(function () {
             $('#message-area').hide();
             $('#form-chat').hide();
             $('#title-text').html(widgetTitle);
-            $('.siButtonActionClose-chat').hide();
             $('button .loader').addClass('loaded');
         });
     };
@@ -408,6 +404,7 @@ $(function () {
     }
 
     function newSubscribe() {
+        $('.container-fluid.loader').show();
         var siName = localStorage.getItem("rtp_name");
         var siEmail = localStorage.getItem("rtp_email");
         var siRefresh = localStorage.getItem("rtp_refresh_" + wid);
@@ -488,8 +485,7 @@ $(function () {
         $('#form-chat-wrap').show();
         $('#form-chat').show();
         $('#message-area').hide();
-        $('#form-close-chat').hide();
-        $('.siButtonActionClose-chat').show();
+        $('#form-close-chat').hide();        
     }
 
     function addMessage(author, message, datetime, msgType, agentPhoto, chatStatus) {

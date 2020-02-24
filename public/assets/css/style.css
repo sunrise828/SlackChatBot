@@ -1026,12 +1026,14 @@ select:focus {
     display: none;
 }
 
-.no-support {
+.no-support, .container-fluid.loader {
     height: 100%;
     position: fixed;
+    z-index: 10;
+    background-color: white;
 }
 
-.no-support .row{
+.no-support .row, .loader .row{
     height: 100%;
 }
 
