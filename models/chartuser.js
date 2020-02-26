@@ -11,11 +11,8 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
-    joined: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0
-    },
     slackId: DataTypes.STRING,
+    slackUserName: DataTypes.STRING,
     ticketId: DataTypes.STRING,
     status: {
       type: DataTypes.INTEGER,

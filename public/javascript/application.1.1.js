@@ -4,10 +4,8 @@ $(function () {
 
     var chatContent = $('#chatContent');
     var input = $('#message');
-    var status = $('#status');
     var msgType = "visitor";
     var lastMessageBy = "";
-    var lastTime = 0;
     var chatStatus = ''; // 'not-started', 'queued', 'started', 'finished'
     var agentTypingTimer = null;
 
@@ -23,7 +21,6 @@ $(function () {
     var startNewMessage = chatwidget_vars.startNewMessage;
     var waitingMessage = chatwidget_vars.waitingMessage;
     var widgetTitle = chatwidget_vars.widgetTitle;
-    var userId = null;
     var isCWActive = true;
     var sessionId = "";
     var socket = null;
@@ -76,7 +73,7 @@ $(function () {
             } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
                 $('#message').addClass('message_ios');
             }
-            loadEmoji();
+        
         } else if (chatStatus == 'not-started') {
             $('.container-fluid.loader').hide();
             $('#form-presales').show();
@@ -141,7 +138,7 @@ $(function () {
 
         if (vname && vemail) {
             $('button .loader').removeClass('loaded');
-            $('.siButtonActionClose-chat').show();
+            
             const param = {
                 author: author,
                 wid: wid,
@@ -190,15 +187,7 @@ $(function () {
         } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
 
         }
-        loadEmoji();
     }
-
-    function loadEmoji() {
-        if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
-            $("#btnEmoji").show();
-            $("#btnSendHref").show();
-        }
-    };
 
     function onMessage(response) {
         var json = response;
@@ -215,7 +204,7 @@ $(function () {
             $('#typingIndicator').addClass('hide');
             clearAgentTyping();
             if (json.domain == 'slack') {
-                var ap = '/images/material-person-white.png';
+                var ap = chatwidget_vars.supportManIcon;
                 addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
                 if (!isCWActive)
                     play_sound();
@@ -240,6 +229,38 @@ $(function () {
 
     // socket init
     function socketInit() {
+        socket.on('Welcome', function(event) {
+            $('.siButtonActionClose-chat').show();
+            $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
+            $('#status .welcome-msg .si-block-paragraph').html(event.welcomeMsg);
+            setTimeout(function() {
+                if ($('#status .ticket-info').length <= 0) {
+                    $('#status').append(`<div class="sic-block sic-block-admin ticket-info">
+                        <div class="si-comment-wrapper si-comment-wrapper-admin">
+                            <div class="si-comment-wrapper-admin-img">
+                                <div class="si-img">
+                                    <img id="initials" data-name="Live Chat" src="./images/logo-white.png" class="initials img-circle">
+                                </div>
+                            </div>
+                            <div class="si-comment">
+                                <div class="si-blocks">
+                                    <div class="si-block si-block-paragraph">
+                                        A ticket for this conversation has been created.  Your ticket number is: #T-${event.ticket}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <span></span>
+                    </div>`);
+                }
+            }, 500);
+                    
+        })
+
+        socket.on('Joined:Slack', function (data) {
+            addMessage('System', data.message, new Date(data.event_ts), 'admin', chatwidget_vars.systemIcon, 'joined');
+        });
+
         socket.on('Room:Created', function (data) {
             $('.container-fluid.loader').show();
             if (data.ticket) {
@@ -247,7 +268,6 @@ $(function () {
             }
             chatStatus = 'started';
             localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
-            userId = data.id;
             socket.emit('Joined:Room');
             showMainPage();
         });
@@ -278,7 +298,10 @@ $(function () {
                 event.msgs.forEach(msg => {
                     if (msg.domain == 'slack') {
                         addMessage('Support Man', msg.text, new Date(msg.createdAt),
-                            '', '/images/material-person-white.png', 'queue');
+                            '', chatwidget_vars.supportManIcon, 'queue');
+                    } else if (msg.domain == 'system') {
+                        addMessage('System', msg.text, new Date(msg.createdAt),
+                            '', '/images/logo-white.png', 'system');
                     } else {
                         var myMsg = {
                             time: new Date(msg.createdAt).getTime(),
@@ -299,10 +322,7 @@ $(function () {
             }
 
             if (event.status == 'finished') {
-                addMessage('System', "This conversation is finished. Please open new!", new Date(),
-                    '', '/images/logo-white.png', 'close');
-                chatClosed();
-                $('.siButtonActionClose-chat').show();
+                chatFinished();
             } else if (event.status == 'history') {
                 chatStatus = 'started';
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
@@ -329,42 +349,45 @@ $(function () {
         })
 
         socket.on('2MinAlert', function () {
-            const message = "We haven't here from you in some time. Are you still with us?\n"
-                + "Please respond if you are still there";
+            const message = "We haven't heard from you in some time.\n Are you still with us? Please respond if you are still here.";
 
-            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '2minAlert');
+            addMessage('System', message, new Date(), 'admin', chatwidget_vars.systemIcon, '2minAlert');
         });
 
         socket.on('3MinAlert', function () {
             const message = "We are going to have to end this chat if we don't hear from you."
                 + "We will have to end this chat in 1 minute.";
-            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '3minAlert');
+            addMessage('System', message, new Date(), 'admin', chatwidget_vars.systemIcon, '3minAlert');
         });
 
         socket.on('4MinAlert', function () {
-            const message = "Thanks for using our system. This chat is timeout.";
-            + "We will have to end this chat in 1 minute.";
-            addMessage('System', message, new Date(), 'admin', './images/logo-white.png', '4minAlert');
+            const message = "Thank you for chatting with us.  This chat has now closed due to inactivity.  An email with the transcript will be sent to you shortly.  You can reply to this email for additional help or start a new chat session.";
+            addMessage('System', message, new Date(), 'admin', chatwidget_vars.systemIcon, '4minAlert');
             // socket.emit('Finished', {status: 'finished'});
-            chatStatus = "finished";
+            chatStatus = "not-started";
             localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
             chatClosed();
         });
 
         socket.on('Finished', function (event) {
-            chatStatus = 'not-started';
-            localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
-            socket.disconnect();
-            socket = null;
-            $('#form-close-chat').hide()
-            $('#form-presales').show();
-            $('#form-chat-wrap').hide();
-            $('#message-area').hide();
-            $('#form-chat').hide();
-            $('#title-text').html(widgetTitle);
-            $('button .loader').addClass('loaded');
+            chatFinished();
         });
     };
+
+    function chatFinished() {
+        chatStatus = 'not-started';
+        localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
+        socket.disconnect();
+        socket = null;
+        $('#form-close-chat').hide()
+        $('#form-presales').show();
+        $('#form-chat-wrap').hide();
+        $('#message-area').hide();
+        $('#form-chat').hide();
+        $('#title-text').html(widgetTitle);
+        $('button .loader').addClass('loaded');
+        $('.siButtonActionClose-chat').show();
+    }
 
     input.keydown(function (e) {
         if (e.keyCode === 13) {
@@ -388,9 +411,6 @@ $(function () {
                 socket.emit('Message', msg);
             }
             $(this).val('').focus();
-            try {
-                $('.msgArea').emojiPicker('hide');
-            } catch (err) { }
         } else {
             socket.emit('Typing');
         }
@@ -464,22 +484,6 @@ $(function () {
         $('#form-close-chat').hide();
     })
 
-    $('.silc-btn-button-minimize').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // if ($('#form-offline-sent').is(":visible")) {
-        //     $('#form-close-chat').hide();
-        // } else {
-        //     $('#form-chat-wrap').show();
-        //     $('#message-area').show();
-        //     $('#form-chat').show();
-        //     $('#form-close-chat').hide();
-        // }
-        parent.postMessage("siCloseWindow", "*");
-
-    });
-
     $('.silc-btn-button-close').click(function (e) {
         if ("not-started" !== chatStatus) {
             e.preventDefault();
@@ -511,9 +515,6 @@ $(function () {
         message = replaceAll(message, "&#61;", "=");
         message = replaceAll(message, "&#43;", "+");
         message = replaceAll(message, "&#34;", "\"");
-
-        message = emoji.replace_unified(message);
-        message = emoji.replace_colons(message);
 
         if (message.indexOf('<a href') < 0 && message.indexOf('<i>') < 0 &&
             message.indexOf('<img ') < 0 && message.indexOf('<b>') < 0) {
@@ -602,9 +603,6 @@ $(function () {
         message = replaceAll(message, "&#39;", "'");
         message = replaceAll(message, "&#61;", "=");
         message = replaceAll(message, "&#43;", "+");
-
-        message = emoji.replace_colons(message);
-        message = emoji.replace_unified(message);
 
         chatContent.append(message);
         var scrollTo_val = $('#form-chat').prop('scrollHeight') + 'px';

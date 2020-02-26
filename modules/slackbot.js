@@ -88,27 +88,56 @@ exports.init = async (workspace) => {
 
     global.bot[workspace.id].on('member_joined_channel', async function (event) {
       // Add the subscription
-      if (event.user == workspace.botUserId || event.user == workspace.userId) {
+      if (event.user == workspace.botUserId) {
         return;
       }
-      const chatUsers = await User.findAll({
+
+      const chatUser = await User.findOne({
         where: {
-          channelId: event.channel
+          channelId: event.channel,
+          status: 0
         }
       });
-      if (chatUsers.length) {
-        for (var i = 0; i < chatUsers.length; i++) {
-          let chatUser = chatUsers[i];
-          let slackUsers = [];
-          if (chatUser.slackId)
-            slackUsers = chatUser.slackId.split(',');
-          slackUsers.push(event.user);
-          chatUser.slackId = slackUsers.join(',');
-          await chatUser.save();
+      let slackUserName = event.user;
+      if (chatUser) {
+        let slackUsers = [];
+        if (chatUser.slackId)
+          slackUsers = chatUser.slackId.split(',');
+        slackUsers.push(event.user);
+        chatUser.slackId = slackUsers.join(',');
+
+        const slackUserRes = await global.slackWeb[workspace.id].users.info({
+          user: event.user
+        });
+        if (slackUserRes.ok) {
+          slackUserName = slackUserRes.user.name;
+          await History.create({
+            text: `${slackUserName} has joined chat.`,
+            channel: event.channel,
+            domain: 'system',
+            sent: 1,
+            slackUser: ''
+          });
+          
+          if (chatUser.slackUserName)
+            chatUser.slackUserName = chatUser.slackUserName + ',' + slackUserRes.user.name;
+          else 
+            chatUser.slackUserName = slackUserRes.user.name;
         }
+        await chatUser.save();
       }
       try {
+        
         await addPresenceSubscriptions();
+        socket.emitToSocketId(event.channel, 'Joined:Slack', {
+          author: 'System',
+          message: `${slackUserName} has joined chat.`,
+          type: event.type,
+          event_ts: new Date().getTime(),
+          ts: new Date().getTime(),
+          domain: 'slack'
+        })
+        
       } catch (error) {
         console.log('Failed to subscribe to presence, error: ', error);
       }
@@ -164,11 +193,18 @@ exports.init = async (workspace) => {
       });
 
       if (user) {
-        let slackUsers = [];
-        if (user.slackId) slackUsers = user.slackId.split(',');
+        let slackUsers = [], userNames = [];
+        if (user.slackId) {
+          slackUsers = user.slackId.split(',');
+          userNames = user.slackUserName.split(',');
+        }
+        const userIndex = slackUsers.findIndex(user => (user == event.user));
         let newUsers = slackUsers.filter(id => (id != event.user));
         newUsers = _.uniq(newUsers);
         user.slackId = newUsers.join(',');
+        let temp = userNames.splice(0, userIndex);
+        temp = temp.concat(userNames.splice(userIndex + 1));
+        user.slackUserName = temp.join(',');
         await user.save();
         if (newUsers.length < 1) {
           global.timers[event.channel] = setTimeout(noSupport, 4 * 60 * 1000, event.channel);

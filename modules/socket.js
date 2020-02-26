@@ -21,18 +21,22 @@ exports.emitOverChannel = emitOverChannel;
 exports.init = async () => {
     global.io.on('connection', async (socket) => {
         socket.on("User:Arrived", async function (data) {
-            const wRes = await axios.post(config.apiHost + 'getinfobyserial',
+            const wRes = await axios.post(config.apiHost + 'createticket',
                 {
-                    serialId: data.wid
+                    serialId: data.wid,
+                    requestorEmail: data.email,
+                    requestorName: data.name,
+                    requestUrl: data.currentPage
                 });
 
-            if (wRes.status != 200 || wRes.data.msg !== 'success') {
+            if (wRes.status != 200 || wRes.data.status < 1) {
                 return emitOverChannel('Error', {
                     reason: 'wrong_workspace_id',
                     sessionId: data.sessionId
                 });
             }
             const workspace = wRes.data.slackbot;
+            const ticket = wRes.data.ticket;
             const presence = await slackbot.verifyChannels(workspace);
             if (!presence) {
                 return emitOverChannel('Error', {
@@ -62,7 +66,8 @@ exports.init = async () => {
                         channel: newChannel.length > 0 ? newChannel : `customer-${new Date().getTime()}`,
                         workspaceId: data.wid,
                         status: 0,
-                        webPage: data.currentPage
+                        webPage: data.currentPage,
+                        ticketId: ticket
                     }
                 });
                 if (users.length > 0) {
@@ -73,7 +78,13 @@ exports.init = async () => {
             if (user) {
                 socket.join(user.channelId);
                 const plainUser = user.get({ plain: true });
-                roomInit(socket, user, workspace, data.status == 'started');
+                const conNums = Object.keys(global.io.to(user.channelId).connected).length;
+                const refresh = conNums < 2 && data.status == 'started';
+                roomInit(socket, user, workspace, refresh);
+                emitToSocketId(plainUser.channelId, 'Welcome', {
+                    ticket: user.ticketId,
+                    welcomeMsg: workspace.welcomeMessage
+                });
                 if (data.status == 'not-started') {
                     emitToSocketId(plainUser.channelId, 'Room:Created', {
                         sessionId: plainUser.sessionId,
@@ -84,7 +95,7 @@ exports.init = async () => {
                 }
             } else {
                 return emitOverChannel('Error', {
-                    reason: 'wrong_workspace_id',
+                    reason: 'wrong_session_id',
                     sessionId: data.sessionId
                 });
             }
@@ -134,7 +145,7 @@ function createChannel(user, workspace) {
                     const broadMessage = `Chat starting in <#${plainUser.channelId}|${plainUser.channel}>.\n${plainUser.name} sent first message for queue "${workspace.queueName}" to <#${plainUser.channelId}|${plainUser.channel}>`;
                     await web.chat.postMessage({
                         text: broadMessage,
-                        channel: user.channelId,
+                        channel: workspace.incomeChannelId,
                         attachments: [{
                             pretext: 'Visitor Information',
                             text: `Name: ${user.name} \n Email: ${user.email}\n Page: ${user.webPage} `
@@ -142,18 +153,6 @@ function createChannel(user, workspace) {
                     });
                 } else {
                     console.error('error of creating channel:', res.data.error);
-                }
-            }
-
-            if (plainUser.joined < 1) {
-                const joinRes = await web.conversations.join({
-                    channel: plainUser.channelId
-                });
-                if (!joinRes.ok) {
-                    console.error('error of joining channel:', joinRes.error);
-                } else {
-                    user.joined = 1;
-                    user.save();
                 }
             }
 
@@ -183,6 +182,13 @@ function createChannel(user, workspace) {
                 }
 
             }
+
+            const joinRes = await web.conversations.leave({
+                channel: plainUser.channelId
+            });
+            if (!joinRes.ok) {
+                console.error('error of joining channel:', joinRes.error);
+            }
         }
         return resolve(user);
     });
@@ -207,11 +213,12 @@ async function roomInit(socket, user, workspace, refresh) {
 
     await sendHistories(plainUser, workspace, refresh);
     socket.in(`${roomId}`).on('Joined:Room', async () => {
+        console.log('connected users', socket.in(`${roomId}`).connected);
         clearClientTimer(roomId, workspace);
         await sendHistories(plainUser);
         await global.slackWeb[workspace.accessToken].chat.postMessage({
-            channel: workspace.incomeChannelId,
-            text: `${plainUser.name} started the conversation on <#${plainUser.channelId}|${plainUser.channel}>.`,
+            channel: plainUser.channelId,
+            text: `*${plainUser.name}* _started the conversation on_ <#${plainUser.channelId}|${plainUser.channel}>.`,
             attachments: [{
                 "pretext": "Visitor Information",
                 "text": "Name: " + plainUser.name + "\n Email: " + plainUser.email + "\nPage: " + plainUser.webPage
@@ -296,9 +303,10 @@ async function roomInit(socket, user, workspace, refresh) {
     });
 
     socket.in(`${roomId}`).on('disconnect', async (message) => {
-        if (global.slackWeb[workspace.accessToken]) {
+        const conNum = Object.keys(global.io.to(roomId).connected).length;
+        if (global.slackWeb[workspace.accessToken] && conNum < 1) {
             global.slackWeb[workspace.accessToken].chat.postMessage({
-                text: `${user.name} went offline`,
+                text: `*${user.name}* _went offline_.`,
                 channel: user.channelId
             });
         }
@@ -331,17 +339,20 @@ function sendHistories(user, workspace, flag = false) {
             clearClientTimer(user.channelId, workspace);
         }
 
+        
         if (flag && user.status < 1 && global.slackWeb[workspace.accessToken]) {
+            
             await global.slackWeb[workspace.accessToken].chat.postMessage({
                 channel: user.channelId,
-                text: `${user.name} come back online.`
+                text: `*${user.name}* _come back online_.`
             });
         }
 
         emitToSocketId(user.channelId, 'Histories', {
             status: user.status > 0 ? 'finished' : 'history',
             msgs: latest,
-            ticket: user.ticketId
+            ticket: user.ticketId,
+            slackUser: user.slackUserName
         });
 
         resolve();
@@ -380,7 +391,7 @@ async function finishChannel(roomId, workspace) {
         if (global.slackWeb[workspace.accessToken]) {
             await global.slackWeb[workspace.accessToken].chat.postMessage({
                 channel: user.channelId,
-                text: `${user.name} finished the conversation on <#${user.channelId}|${user.channel}>.`
+                text: `_Chat closed due to inactivity_.`
             });
         }
 
