@@ -21,12 +21,9 @@ exports.emitOverChannel = emitOverChannel;
 exports.init = async () => {
     global.io.on('connection', async (socket) => {
         socket.on("User:Arrived", async function (data) {
-            const wRes = await axios.post(config.apiHost + 'createticket',
+            const wRes = await axios.post(config.apiHost + 'getinfobyserial',
                 {
-                    serialId: data.wid,
-                    requestorEmail: data.email,
-                    requestorName: data.name,
-                    requestUrl: data.currentPage
+                    serialId: data.wid
                 });
 
             if (wRes.status != 200 || wRes.data.status < 1) {
@@ -36,7 +33,7 @@ exports.init = async () => {
                 });
             }
             const workspace = wRes.data.slackbot;
-            const ticket = wRes.data.ticket;
+            
             const presence = await slackbot.verifyChannels(workspace);
             if (!presence) {
                 return emitOverChannel('Error', {
@@ -55,6 +52,22 @@ exports.init = async () => {
                     }
                 });
             } else {
+                const tRes = await axios.post(config.apiHost + 'createticket',
+                {
+                    serialId: data.wid,
+                    requestorEmail: data.email,
+                    requestorName: data.name,
+                    requestUrl: data.currentPage
+                });
+
+                if (tRes.status != 200 || tRes.data.status < 1) {
+                    return emitOverChannel('Error', {
+                        reason: 'wrong_workspace_id',
+                        sessionId: data.sessionId
+                    });
+                }
+                const ticket = tRes.data.ticket;
+
                 const newChannel = await UserController.getNewChannel(data.name, workspace.queueName);
                 const users = await User.findOrCreate({
                     where: {
