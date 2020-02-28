@@ -20,6 +20,8 @@ $(function () {
     var timeoutSeconds = chatwidget_vars.timeoutSeconds;
     var startNewMessage = chatwidget_vars.startNewMessage;
     var waitingMessage = chatwidget_vars.waitingMessage;
+    var systemIcon = chatwidget_vars.baseUrl + 'images/logo-white.png';
+    var supportManIcon = chatwidget_vars.baseUrl + 'images/material-person-white.png';
     var widgetTitle = chatwidget_vars.widgetTitle;
     var isCWActive = true;
     var sessionId = "";
@@ -204,7 +206,7 @@ $(function () {
             $('#typingIndicator').addClass('hide');
             clearAgentTyping();
             if (json.domain == 'slack') {
-                var ap = chatwidget_vars.supportManIcon;
+                var ap = supportManIcon;
                 addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
                 if (!isCWActive)
                     play_sound();
@@ -239,7 +241,7 @@ $(function () {
                         <div class="si-comment-wrapper si-comment-wrapper-admin">
                             <div class="si-comment-wrapper-admin-img">
                                 <div class="si-img">
-                                    <img id="initials" data-name="Live Chat" src="./images/logo-white.png" class="initials img-circle">
+                                    <img id="initials" data-name="Live Chat" src="${systemIcon}" class="initials img-circle">
                                 </div>
                             </div>
                             <div class="si-comment">
@@ -258,7 +260,7 @@ $(function () {
         })
 
         socket.on('Joined:Slack', function (data) {
-            addMessage('System', data.message, new Date(data.event_ts), 'admin', chatwidget_vars.systemIcon, 'joined');
+            addMessage('System', data.message, new Date(data.event_ts), 'admin', systemIcon, 'joined');
         });
 
         socket.on('Room:Created', function (data) {
@@ -298,10 +300,10 @@ $(function () {
                 event.msgs.forEach(msg => {
                     if (msg.domain == 'slack') {
                         addMessage('Support Man', msg.text, new Date(msg.createdAt),
-                            '', chatwidget_vars.supportManIcon, 'queue');
+                            '', supportManIcon, 'queue');
                     } else if (msg.domain == 'system') {
                         addMessage('System', msg.text, new Date(msg.createdAt),
-                            '', '/images/logo-white.png', 'system');
+                            '', systemIcon, 'system');
                     } else {
                         var myMsg = {
                             time: new Date(msg.createdAt).getTime(),
@@ -351,18 +353,18 @@ $(function () {
         socket.on('2MinAlert', function () {
             const message = "We haven't heard from you in some time.\n Are you still with us? Please respond if you are still here.";
 
-            addMessage('System', message, new Date(), 'admin', chatwidget_vars.systemIcon, '2minAlert');
+            addMessage('System', message, new Date(), 'admin', systemIcon, '2minAlert');
         });
 
         socket.on('3MinAlert', function () {
             const message = "We are going to have to end this chat if we don't hear from you."
                 + "We will have to end this chat in 1 minute.";
-            addMessage('System', message, new Date(), 'admin', chatwidget_vars.systemIcon, '3minAlert');
+            addMessage('System', message, new Date(), 'admin', systemIcon, '3minAlert');
         });
 
         socket.on('4MinAlert', function () {
             const message = "Thank you for chatting with us.  This chat has now closed due to inactivity.  An email with the transcript will be sent to you shortly.  You can reply to this email for additional help or start a new chat session.";
-            addMessage('System', message, new Date(), 'admin', chatwidget_vars.systemIcon, '4minAlert');
+            addMessage('System', message, new Date(), 'admin', systemIcon, '4minAlert');
             // socket.emit('Finished', {status: 'finished'});
             chatStatus = "not-started";
             localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
