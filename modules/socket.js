@@ -1,4 +1,5 @@
 const axios = require('axios');
+const moment = require('moment');
 const UserController = require('../controllers').user;
 const slackbot = require('./slackbot');
 const History = require('../models').History;
@@ -96,7 +97,8 @@ exports.init = async () => {
                 roomInit(socket, user, workspace, refresh);
                 emitToSocketId(plainUser.channelId, 'Welcome', {
                     ticket: user.ticketId,
-                    welcomeMsg: workspace.welcomeMessage
+                    welcomeMsg: workspace.welcomeMessage,
+                    ts: moment(user.createdAt).utcOffset(0).toISOString()
                 });
                 if (data.status == 'not-started') {
                     emitToSocketId(plainUser.channelId, 'Room:Created', {
@@ -258,8 +260,8 @@ async function roomInit(socket, user, workspace, refresh) {
             author: '',
             message: message.message,
             type: '',
-            event_ts: history.createdAt,
-            ts: history.createdAt,
+            event_ts: moment(history.createdAt).utcOffset(0).toISOString(),
+            ts: moment(history.createdAt).utcOffset(0).toISOString(),
             domain: 'user'
         });
 
@@ -378,11 +380,17 @@ async function clearClientTimer(roomId, workspace) {
         global.clientTimers[roomId] = null;
     }
     global.clientTimers[roomId] = setTimeout(() => {
-        emitToSocketId(roomId, '2MinAlert');
+        emitToSocketId(roomId, '2MinAlert', {
+            ts: moment().utcOffset(0).toISOString()
+        });
         global.clientTimers[roomId] = setTimeout(() => {
-            emitToSocketId(roomId, '3MinAlert');
+            emitToSocketId(roomId, '3MinAlert', {
+                ts: moment().utcOffset(0).toISOString()
+            });
             global.clientTimers[roomId] = setTimeout(() => {
-                emitToSocketId(roomId, '4MinAlert');
+                emitToSocketId(roomId, '4MinAlert', {
+                    ts: moment().utcOffset(0).toISOString()
+                });
                 clearTimeout(global.clientTimers[roomId]);
                 delete global.clientTimers[roomId];
                 finishChannel(roomId, workspace);

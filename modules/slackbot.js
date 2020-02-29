@@ -1,5 +1,6 @@
 const { RTMClient } = require('@slack/rtm-api');
 const { Op } = require("sequelize");
+const moment = require('moment');
 const { WebClient, LogLevel } = require('@slack/web-api');
 const socket = require('./socket');
 const _ = require('lodash');
@@ -39,8 +40,8 @@ exports.init = async (workspace) => {
         author: 'Support Man',
         message: data.text,
         type: data.type,
-        event_ts: data.event_ts,
-        ts: data.ts,
+        event_ts: moment(history.createdAt).utcOffset(0).toISOString(),
+        ts: moment(history.createdAt).utcOffset(0).toISOString(),
         domain: 'slack'
       }
       socket.emitToSocketId(data.channel, 'Message', sendData);
@@ -99,6 +100,7 @@ exports.init = async (workspace) => {
         }
       });
       let slackUserName = event.user;
+      let history = null;
       if (chatUser) {
         let slackUsers = [];
         if (chatUser.slackId)
@@ -111,7 +113,7 @@ exports.init = async (workspace) => {
         });
         if (slackUserRes.ok) {
           slackUserName = slackUserRes.user.name;
-          await History.create({
+          history = await History.create({
             text: `${slackUserName} has joined chat.`,
             channel: event.channel,
             domain: 'system',
@@ -133,8 +135,8 @@ exports.init = async (workspace) => {
           author: 'System',
           message: `${slackUserName} has joined chat.`,
           type: event.type,
-          event_ts: new Date().getTime(),
-          ts: new Date().getTime(),
+          event_ts: moment(history.createdAt).utcOffset(0).toISOString(),
+          ts: moment(history.createdAt).utcOffset(0).toISOString(),
           domain: 'slack'
         })
         

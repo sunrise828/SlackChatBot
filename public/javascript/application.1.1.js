@@ -193,7 +193,7 @@ $(function () {
 
     function onMessage(response) {
         var json = response;
-        var date = typeof (json.event_ts) == 'string' ? parseInt(json.event_ts) : json.event_ts;
+        var date = moment(response.event_ts).local().format('HH:mm a');
         if (json.status == 'aTyping') {
             $('#typingIndicator').removeClass('hide');
             clearAgentTyping();
@@ -207,12 +207,12 @@ $(function () {
             clearAgentTyping();
             if (json.domain == 'slack') {
                 var ap = supportManIcon;
-                addMessage(json.author, json.message, new Date(date), json.type, ap, json.chatStatus);
+                addMessage(json.author, json.message, date, json.type, ap, json.chatStatus);
                 if (!isCWActive)
                     play_sound();
             } else {
                 lastMessageBy = json.author;
-                addMessage(json.author, json.message, new Date(date), msgType, '', chatStatus);
+                addMessage(json.author, json.message, date, msgType, '', chatStatus);
             }
         }
     };
@@ -232,6 +232,8 @@ $(function () {
     // socket init
     function socketInit() {
         socket.on('Welcome', function(event) {
+            const utcTime = moment(event.ts).utcOffset(0).toISOString();
+            var time = moment(utcTime).local().format('HH:mm a');
             $('.siButtonActionClose-chat').show();
             $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
             $('#status .welcome-msg .si-block-paragraph').html(event.welcomeMsg);
@@ -251,6 +253,7 @@ $(function () {
                                     </div>
                                 </div>
                             </div>
+                            <div class="si-comment-wrapper-admin-name">${time}</div>
                         </div>
                         <span></span>
                     </div>`);
@@ -260,7 +263,9 @@ $(function () {
         })
 
         socket.on('Joined:Slack', function (data) {
-            addMessage('System', data.message, new Date(data.event_ts), 'admin', systemIcon, 'joined');
+            const utcTime = moment(event.ts).utcOffset(0).toISOString();
+            var time = moment(utcTime).local().format('HH:mm a');
+            addMessage('System', data.message, time, 'admin', systemIcon, 'joined');
         });
 
         socket.on('Room:Created', function (data) {
@@ -298,15 +303,17 @@ $(function () {
             }
             if (event.msgs.length > 0) {
                 event.msgs.forEach(msg => {
+                    const utcTime = moment(msg.createdAt).utcOffset(0).toISOString();
+                    var date = moment(utcTime).local().format('HH:mm a');
                     if (msg.domain == 'slack') {
-                        addMessage('Support Man', msg.text, new Date(msg.createdAt),
+                        addMessage('Support Man', msg.text, date,
                             '', supportManIcon, 'queue');
                     } else if (msg.domain == 'system') {
-                        addMessage('System', msg.text, new Date(msg.createdAt),
+                        addMessage('System', msg.text, date,
                             '', systemIcon, 'system');
                     } else {
                         var myMsg = {
-                            time: new Date(msg.createdAt).getTime(),
+                            time: date,
                             author: author,
                             message: msg.text,
                             chatStatus: 'queue',
@@ -351,20 +358,27 @@ $(function () {
         })
 
         socket.on('2MinAlert', function () {
+            const utcTime = moment(event.ts).utcOffset(0).toISOString();
+            var time = moment(utcTime).local().format('HH:mm a');
             const message = "We haven't heard from you in some time.\n Are you still with us? Please respond if you are still here.";
-
-            addMessage('System', message, new Date(), 'admin', systemIcon, '2minAlert');
+            addMessage('System', message, time, 'admin', systemIcon, '2minAlert');
         });
 
-        socket.on('3MinAlert', function () {
+        socket.on('3MinAlert', function (event) {
+            const utcTime = moment(event.ts).utcOffset(0).toISOString();
+            var time = moment(utcTime).local().format('HH:mm a');
+            
             const message = "We are going to have to end this chat if we don't hear from you."
                 + "We will have to end this chat in 1 minute.";
-            addMessage('System', message, new Date(), 'admin', systemIcon, '3minAlert');
+            addMessage('System', message, time, 'admin', systemIcon, '3minAlert');
         });
 
         socket.on('4MinAlert', function () {
+            const utcTime = moment(event.ts).utcOffset(0).toISOString();
+            var time = moment(utcTime).local().format('HH:mm a');
+            
             const message = "Thank you for chatting with us.  This chat has now closed due to inactivity.  An email with the transcript will be sent to you shortly.  You can reply to this email for additional help or start a new chat session.";
-            addMessage('System', message, new Date(), 'admin', systemIcon, '4minAlert');
+            addMessage('System', message, time, 'admin', systemIcon, '4minAlert');
             // socket.emit('Finished', {status: 'finished'});
             chatStatus = "not-started";
             localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
@@ -506,9 +520,6 @@ $(function () {
     }
 
     function addMessage(author, message, datetime, msgType, agentPhoto, chatStatus) {
-        var time = (datetime.getHours() < 10 ? '0' + datetime.getHours() : datetime.getHours()) + ':' +
-            (datetime.getMinutes() < 10 ? '0' + datetime.getMinutes() : datetime.getMinutes());
-
         message = replaceAll(message, "&amp;", "&");
         message = replaceAll(message, "&lt;", "<");
         message = replaceAll(message, "&gt;", ">");
@@ -529,7 +540,7 @@ $(function () {
             if ('visitor' == msgType) {
                 var msg = '<div class="sic-block sic-block-user sic-block-last"><div class="si-comment-wrapper si-comment-wrapper-user"><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">'
                 msg += message;
-                msg += '</div></div></div></div></div>';
+                msg += `</div></div></div><div class="si-comment-wrapper-admin-name">${datetime}</div></div></div>`;
                 chatContent.append(msg);
             } else {
                 if (chatStatus == "closed") {
@@ -550,7 +561,7 @@ $(function () {
                     }
                     msg += '<div class="si-comment-wrapper-admin-img"><div class="si-img"><img src="' + agentPhoto + '"></div></div><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">'
                     msg += message;
-                    msg += '</div></div></div></div><span></span></div>';
+                    msg += `</div></div></div><div class="si-comment-wrapper-admin-name">${datetime}</div></div></div>`;
                     chatContent.append(msg);
                 }
 
@@ -560,7 +571,7 @@ $(function () {
             if ('visitor' == msgType) {
                 var msg = '<div class="sic-block sic-block-user sic-block-last"><div class="si-comment-wrapper si-comment-wrapper-user"><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">'
                 msg += message;
-                msg += '</div></div></div></div></div>';
+                msg += `</div></div></div><div class="si-comment-wrapper-admin-name">${datetime}</div></div></div>`;
                 chatContent.append(msg);
             } else {
                 if (chatStatus == "closed") {
@@ -577,7 +588,7 @@ $(function () {
                 } else {
                     var msg = '<div class="sic-block sic-block-admin"><div class="si-comment-wrapper si-comment-wrapper-admin"><div class="si-comment-wrapper-admin-img"><div class="si-img"><img src="' + agentPhoto + '"></div></div><div class="si-comment"><div class="si-blocks"><div class="si-block si-block-paragraph">'
                     msg += message;
-                    msg += '</div></div></div></div><span></span></div>';
+                    msg += `</div></div></div><div class="si-comment-wrapper-admin-name">${datetime}</div></div></div>`;
                     chatContent.append(msg);
                 }
             }
@@ -655,9 +666,8 @@ $(function () {
     }
 
     function pushl(json) {
-        var date = typeof (json.time) == 'string' ? parseInt(json.time) : json.time;
         if (json.message && json.message.length > 0) {
-            addMessage(json.author, json.message, new Date(date), json.type, '', json.chatStatus);
+            addMessage(json.author, json.message, json.time, json.type, '', json.chatStatus);
         }
         // play_sound();
         // if (!isCWActive && !refresh && json.chatStatus != '' && json.chatStatus != 'ctyping' && json.chatStatus != 'ctypingoff' && json.chatStatus != 'atyping' && json.chatStatus != 'atypingoff') {
