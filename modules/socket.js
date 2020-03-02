@@ -27,96 +27,98 @@ exports.init = async () => {
                     serialId: data.wid
                 });
 
-            
+
             if (wRes.status != 200 || wRes.data.status < 1) {
                 console.log('workspace', wRes.data);
                 return emitOverChannel('Error', {
                     reason: 'wrong_workspace_id',
                     sessionId: data.sessionId
                 });
-            }
-            console.log('available workspace');
-            const workspace = {...wRes.data.slackbot, warnning: wRes.data.warnmessage};
-            
-            const presence = await slackbot.verifyChannels(workspace);
-            if (!presence) {
-                return emitOverChannel('Error', {
-                    reason: 'not_support',
-                    sessionId: data.sessionId
-                });
-            }
-
-            let user = null;
-            if (data.status != 'not-started') {
-                user = await User.findOne({
-                    where: {
-                        email: data.email,
-                        name: data.name,
-                        sessionId: data.sessionId
-                    }
-                });
             } else {
-                const tRes = await axios.post(config.apiHost + 'createticket',
-                {
-                    serialId: data.wid,
-                    requestorEmail: data.email,
-                    requestorName: data.name,
-                    requestUrl: data.currentPage
-                });
+                console.log('available workspace');
+                const workspace = { ...wRes.data.slackbot, warnning: wRes.data.warnmessage };
 
-                if (tRes.status != 200 || tRes.data.status < 1) {
+                const presence = await slackbot.verifyChannels(workspace);
+                if (!presence) {
                     return emitOverChannel('Error', {
-                        reason: 'wrong_workspace_id',
+                        reason: 'not_support',
                         sessionId: data.sessionId
                     });
                 }
-                const ticket = tRes.data.ticket;
 
-                const newChannel = await UserController.getNewChannel(data.name, workspace.queueName);
-                const users = await User.findOrCreate({
-                    where: {
-                        email: data.email,
-                        name: data.name,
-                        sessionId: data.sessionId
-                    },
-                    defaults: {
-                        channel: newChannel.length > 0 ? newChannel : `customer-${new Date().getTime()}`,
-                        workspaceId: data.wid,
-                        status: 0,
-                        webPage: data.currentPage,
-                        ticketId: ticket
+                let user = null;
+                if (data.status != 'not-started') {
+                    user = await User.findOne({
+                        where: {
+                            email: data.email,
+                            name: data.name,
+                            sessionId: data.sessionId
+                        }
+                    });
+                } else {
+                    const tRes = await axios.post(config.apiHost + 'createticket',
+                        {
+                            serialId: data.wid,
+                            requestorEmail: data.email,
+                            requestorName: data.name,
+                            requestUrl: data.currentPage
+                        });
+
+                    if (tRes.status != 200 || tRes.data.status < 1) {
+                        return emitOverChannel('Error', {
+                            reason: 'wrong_workspace_id',
+                            sessionId: data.sessionId
+                        });
                     }
-                });
-                if (users.length > 0) {
-                    user = await createChannel(users[0], workspace);
+                    const ticket = tRes.data.ticket;
+
+                    const newChannel = await UserController.getNewChannel(data.name, workspace.queueName);
+                    const users = await User.findOrCreate({
+                        where: {
+                            email: data.email,
+                            name: data.name,
+                            sessionId: data.sessionId
+                        },
+                        defaults: {
+                            channel: newChannel.length > 0 ? newChannel : `customer-${new Date().getTime()}`,
+                            workspaceId: data.wid,
+                            status: 0,
+                            webPage: data.currentPage,
+                            ticketId: ticket
+                        }
+                    });
+                    if (users.length > 0) {
+                        user = await createChannel(users[0], workspace);
+                    }
+                }
+
+                if (user) {
+                    socket.join(user.channelId);
+                    const plainUser = user.get({ plain: true });
+                    const conNums = Object.keys(global.io.to(user.channelId).connected).length;
+                    const refresh = conNums < 2 && data.status == 'started';
+                    roomInit(socket, user, workspace, refresh);
+                    emitToSocketId(plainUser.channelId, 'Welcome', {
+                        ticket: user.ticketId,
+                        welcomeMsg: workspace.welcomeMessage,
+                        ts: moment(user.createdAt).utcOffset(0).toISOString()
+                    });
+                    if (data.status == 'not-started') {
+                        emitToSocketId(plainUser.channelId, 'Room:Created', {
+                            sessionId: plainUser.sessionId,
+                            channel: plainUser.channelId,
+                            id: plainUser.id,
+                            ticket: user.ticketId
+                        });
+                    }
+                } else {
+                    return emitOverChannel('Error', {
+                        reason: 'wrong_session_id',
+                        sessionId: data.sessionId
+                    });
                 }
             }
 
-            if (user) {
-                socket.join(user.channelId);
-                const plainUser = user.get({ plain: true });
-                const conNums = Object.keys(global.io.to(user.channelId).connected).length;
-                const refresh = conNums < 2 && data.status == 'started';
-                roomInit(socket, user, workspace, refresh);
-                emitToSocketId(plainUser.channelId, 'Welcome', {
-                    ticket: user.ticketId,
-                    welcomeMsg: workspace.welcomeMessage,
-                    ts: moment(user.createdAt).utcOffset(0).toISOString()
-                });
-                if (data.status == 'not-started') {
-                    emitToSocketId(plainUser.channelId, 'Room:Created', {
-                        sessionId: plainUser.sessionId,
-                        channel: plainUser.channelId,
-                        id: plainUser.id,
-                        ticket: user.ticketId
-                    });
-                }
-            } else {
-                return emitOverChannel('Error', {
-                    reason: 'wrong_session_id',
-                    sessionId: data.sessionId
-                });
-            }
         });
     });
 };
@@ -359,9 +361,9 @@ function sendHistories(user, workspace, flag = false) {
             clearClientTimer(user.channelId, workspace, user);
         }
 
-        
+
         if (flag && user.status < 1 && global.slackWeb[workspace.accessToken]) {
-            
+
             await global.slackWeb[workspace.accessToken].chat.postMessage({
                 channel: user.channelId,
                 text: `*${user.name}* _come back online_.`
@@ -389,7 +391,7 @@ async function clearClientTimer(roomId, workspace, keys) {
         global.clientTimers[roomId] = {
             timer: setInterval(() => {
                 console.log('roomId', roomId);
-                global.clientTimers[roomId].index ++;
+                global.clientTimers[roomId].index++;
                 const warnning = workspace.warnning.find(item => (item.warnMinute == global.clientTimers[roomId].index));
                 if (warnning && warnning.warnMessage && warnning.warnMessage.length > 0) {
                     const message = replaceKeywords(warnning.warnMessage, keys)
@@ -440,7 +442,7 @@ async function finishChannel(roomId, workspace, flag = true) {
         if (global.slackWeb[workspace.accessToken]) {
             await global.slackWeb[workspace.accessToken].chat.postMessage({
                 channel: user.channelId,
-                text: flag? `_Chat closed due to inactivity_.`: `_Chat closed by ${user.name}_.`
+                text: flag ? `_Chat closed due to inactivity_.` : `_Chat closed by ${user.name}_.`
             });
         }
 
