@@ -357,29 +357,13 @@ $(function () {
             renderPans();
         })
 
-        socket.on('2MinAlert', function () {
+        socket.on('Alert', function (event) {
             const utcTime = moment(event.ts).utcOffset(0).toISOString();
             var time = moment(utcTime).local().format('HH:mm a');
-            const message = "We haven't heard from you in some time.\n Are you still with us? Please respond if you are still here.";
-            addMessage('System', message, time, 'admin', systemIcon, '2minAlert');
+            addMessage('System', event.msg, time, 'admin', systemIcon, 'Alert');
         });
 
-        socket.on('3MinAlert', function (event) {
-            const utcTime = moment(event.ts).utcOffset(0).toISOString();
-            var time = moment(utcTime).local().format('HH:mm a');
-            
-            const message = "We are going to have to end this chat if we don't hear from you."
-                + "We will have to end this chat in 1 minute.";
-            addMessage('System', message, time, 'admin', systemIcon, '3minAlert');
-        });
-
-        socket.on('4MinAlert', function () {
-            const utcTime = moment(event.ts).utcOffset(0).toISOString();
-            var time = moment(utcTime).local().format('HH:mm a');
-            
-            const message = "Thank you for chatting with us.  This chat has now closed due to inactivity.  An email with the transcript will be sent to you shortly.  You can reply to this email for additional help or start a new chat session.";
-            addMessage('System', message, time, 'admin', systemIcon, '4minAlert');
-            // socket.emit('Finished', {status: 'finished'});
+        socket.on('Finish:Alert', function () {
             chatStatus = "not-started";
             localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
             chatClosed();

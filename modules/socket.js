@@ -33,7 +33,7 @@ exports.init = async () => {
                     sessionId: data.sessionId
                 });
             }
-            const workspace = wRes.data.slackbot;
+            const workspace = {...wRes.data.slackbot, warnning: wRes.data.warnmessage};
             
             const presence = await slackbot.verifyChannels(workspace);
             if (!presence) {
@@ -229,8 +229,8 @@ async function roomInit(socket, user, workspace, refresh) {
     await sendHistories(plainUser, workspace, refresh);
     socket.in(`${roomId}`).on('Joined:Room', async () => {
         console.log('connected users', socket.in(`${roomId}`).connected);
-        clearClientTimer(roomId, workspace);
-        await sendHistories(plainUser);
+        // clearClientTimer(roomId, workspace);
+        await sendHistories(plainUser, workspace);
         await global.slackWeb[workspace.accessToken].chat.postMessage({
             channel: plainUser.channelId,
             text: `*${plainUser.name}* _started the conversation on_ <#${plainUser.channelId}|${plainUser.channel}>.`,
@@ -310,7 +310,8 @@ async function roomInit(socket, user, workspace, refresh) {
 
     socket.in(`${roomId}`).on('Finished', async (message) => {
         if (global.clientTimers[roomId]) {
-            clearTimeout(global.clientTimers[roomId]);
+            clearInterval(global.clientTimers[roomId].timer);
+            global.clientTimers[roomId] = null;
             delete global.clientTimers[roomId];
         }
         finishChannel(roomId, workspace);
@@ -347,8 +348,9 @@ function sendHistories(user, workspace, flag = false) {
 
         if (user.status > 0) {
             if (global.clientTimers[user.channelId]) {
-                clearTimeout(global.clientTimers[user.channelId]);
-                global.clientTimers[user.channelId] = null;
+                clearInterval(global.clientTimers[roomId].timer);
+                global.clientTimers[roomId] = null;
+                delete global.clientTimers[roomId];
             }
         } else {
             clearClientTimer(user.channelId, workspace);
@@ -376,27 +378,35 @@ function sendHistories(user, workspace, flag = false) {
 
 async function clearClientTimer(roomId, workspace) {
     if (global.clientTimers[roomId]) {
-        clearTimeout(global.clientTimers[roomId]);
+        clearInterval(global.clientTimers[roomId].timer);
         global.clientTimers[roomId] = null;
+        delete global.clientTimers[roomId];
     }
-    global.clientTimers[roomId] = setTimeout(() => {
-        emitToSocketId(roomId, '2MinAlert', {
-            ts: moment().utcOffset(0).toISOString()
-        });
-        global.clientTimers[roomId] = setTimeout(() => {
-            emitToSocketId(roomId, '3MinAlert', {
-                ts: moment().utcOffset(0).toISOString()
-            });
-            global.clientTimers[roomId] = setTimeout(() => {
-                emitToSocketId(roomId, '4MinAlert', {
-                    ts: moment().utcOffset(0).toISOString()
-                });
-                clearTimeout(global.clientTimers[roomId]);
-                delete global.clientTimers[roomId];
-                finishChannel(roomId, workspace);
-            }, 60 * 1000);
-        }, 60 * 1000);
-    }, 2 * 60 * 1000);
+    if (workspace.warnning.length > 0) {
+        global.clientTimers[roomId] = {
+            timer: setInterval(() => {
+                console.log('roomId', roomId);
+                global.clientTimers[roomId].index ++;
+                const warnning = workspace.warnning.find(item => (item.warnMinute == global.clientTimers[roomId].index));
+                if (warnning && warnning.warnMessage && warnning.warnMessage.length > 0) {
+                    emitToSocketId(roomId, 'Alert', {
+                        ts: moment().utcOffset(0).toISOString(),
+                        msg: warnning.warnMessage
+                    });
+                }
+
+                if (global.clientTimers[roomId].index == workspace.limitTime) {
+                    emitToSocketId(roomId, 'Finish:Alert', {
+                        ts: moment().utcOffset(0).toISOString()
+                    });
+                    clearInterval(global.clientTimers[roomId].timer);
+                    delete global.clientTimers[roomId];
+                    finishChannel(roomId, workspace);
+                }
+            }, 60 * 1000),
+            index: 0
+        };
+    }
 }
 
 async function finishChannel(roomId, workspace) {

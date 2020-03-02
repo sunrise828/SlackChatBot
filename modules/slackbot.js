@@ -173,7 +173,7 @@ exports.init = async (workspace) => {
               user.slackId = newUsers.join(',');
               await user.save();
               if (slackUsers.length <= 0 && !global.timers[channels[i]]) {
-                global.timers[channels[i]] = setTimeout(noSupport, 4 * 60 * 1000, channels[i]);
+                global.timers[channels[i]] = setTimeout(noSupport, workspace.limitTime * 60 * 1000, channels[i]);
               } else if (slackUsers.length > 0 && global.timers[channels[i]]) {
                 clearTimeout(global.timers[channels[i]]);
               }
@@ -209,7 +209,7 @@ exports.init = async (workspace) => {
         user.slackUserName = temp.join(',');
         await user.save();
         if (newUsers.length < 1) {
-          global.timers[event.channel] = setTimeout(noSupport, 4 * 60 * 1000, event.channel);
+          global.timers[event.channel] = setTimeout(noSupport, workspace.limitTime * 60 * 1000, event.channel);
         }
       }
     })
