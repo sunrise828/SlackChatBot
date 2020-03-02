@@ -263,7 +263,7 @@ $(function () {
         })
 
         socket.on('Joined:Slack', function (data) {
-            const utcTime = moment(event.ts).utcOffset(0).toISOString();
+            const utcTime = moment(data.ts).utcOffset(0).toISOString();
             var time = moment(utcTime).local().format('HH:mm a');
             addMessage('System', data.message, time, 'admin', systemIcon, 'joined');
         });
