@@ -354,7 +354,8 @@ $(function () {
                 chatStatus = 'not-started';
                 localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             }
-            renderPans();
+            if (event.sessionId == sessionId)
+                renderPans();
         })
 
         socket.on('Alert', function (event) {
