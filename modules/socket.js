@@ -242,14 +242,14 @@ async function roomInit(socket, user, workspace, refresh) {
     });
 
     socket.in(`${roomId}`).on('Typing', async (message) => {
-        clearClientTimer(roomId, workspace);
+        clearClientTimer(roomId, workspace, plainUser);
         if (global.bot[workspace.accessToken]) {
             global.bot[workspace.accessToken].sendTyping(plainUser.channelId);
         }
     })
 
     socket.in(`${roomId}`).on('Message', async (message) => {
-        clearClientTimer(roomId, workspace);
+        clearClientTimer(roomId, workspace, plainUser);
         const history = await History.create({
             text: message.message,
             channel: roomId,
@@ -353,7 +353,7 @@ function sendHistories(user, workspace, flag = false) {
                 delete global.clientTimers[roomId];
             }
         } else {
-            clearClientTimer(user.channelId, workspace);
+            clearClientTimer(user.channelId, workspace, user);
         }
 
         
@@ -376,7 +376,7 @@ function sendHistories(user, workspace, flag = false) {
     });
 }
 
-async function clearClientTimer(roomId, workspace) {
+async function clearClientTimer(roomId, workspace, keys) {
     if (global.clientTimers[roomId]) {
         clearInterval(global.clientTimers[roomId].timer);
         global.clientTimers[roomId] = null;
@@ -389,9 +389,10 @@ async function clearClientTimer(roomId, workspace) {
                 global.clientTimers[roomId].index ++;
                 const warnning = workspace.warnning.find(item => (item.warnMinute == global.clientTimers[roomId].index));
                 if (warnning && warnning.warnMessage && warnning.warnMessage.length > 0) {
+                    const message = replaceKeywords(warnning.warnMessage, keys)
                     emitToSocketId(roomId, 'Alert', {
                         ts: moment().utcOffset(0).toISOString(),
-                        msg: warnning.warnMessage
+                        msg: message
                     });
                 }
 
@@ -406,6 +407,20 @@ async function clearClientTimer(roomId, workspace) {
             }, 60 * 1000),
             index: 0
         };
+    }
+}
+
+function replaceKeywords(str, keys) {
+    const fIndex = str.indexOf('{');
+    const lIndex = str.indexOf('}', fIndex) || str.length - 1;
+    if (fIndex >= 0) {
+        const key = str.substr(fIndex + 1, lIndex - fIndex - 1);
+        if (keys[key]) {
+            str = str.substr(0, fIndex) + keys[key] + str.substr(lIndex + 1);
+            return replaceKeywords(str, keys);
+        }
+    } else {
+        return str;
     }
 }
 
