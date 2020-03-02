@@ -29,12 +29,13 @@ exports.init = async () => {
 
             
             if (wRes.status != 200 || wRes.data.status < 1) {
+                console.log('workspace', wRes.data);
                 return emitOverChannel('Error', {
                     reason: 'wrong_workspace_id',
                     sessionId: data.sessionId
                 });
             }
-            console.log('workspace', wRes.data);
+            
             const workspace = {...wRes.data.slackbot, warnning: wRes.data.warnmessage};
             
             const presence = await slackbot.verifyChannels(workspace);
