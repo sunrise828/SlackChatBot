@@ -35,7 +35,7 @@ exports.init = async () => {
                     sessionId: data.sessionId
                 });
             }
-            
+            console.log('available workspace');
             const workspace = {...wRes.data.slackbot, warnning: wRes.data.warnmessage};
             
             const presence = await slackbot.verifyChannels(workspace);
@@ -228,7 +228,7 @@ function getChannel(lists, cname) {
 async function roomInit(socket, user, workspace, refresh) {
     const plainUser = user.get({ plain: true });
     const roomId = plainUser.channelId;
-
+    console.log('room init', roomId);
     await sendHistories(plainUser, workspace, refresh);
     socket.in(`${roomId}`).on('Joined:Room', async () => {
         console.log('connected users', socket.in(`${roomId}`).connected);
