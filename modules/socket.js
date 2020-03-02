@@ -27,12 +27,14 @@ exports.init = async () => {
                     serialId: data.wid
                 });
 
+            
             if (wRes.status != 200 || wRes.data.status < 1) {
                 return emitOverChannel('Error', {
                     reason: 'wrong_workspace_id',
                     sessionId: data.sessionId
                 });
             }
+            console.log('workspace', wRes.data);
             const workspace = {...wRes.data.slackbot, warnning: wRes.data.warnmessage};
             
             const presence = await slackbot.verifyChannels(workspace);
@@ -314,7 +316,7 @@ async function roomInit(socket, user, workspace, refresh) {
             global.clientTimers[roomId] = null;
             delete global.clientTimers[roomId];
         }
-        finishChannel(roomId, workspace);
+        finishChannel(roomId, workspace, false);
         emitToSocketId(roomId, 'Finished');
     });
 
@@ -424,7 +426,7 @@ function replaceKeywords(str, keys) {
     }
 }
 
-async function finishChannel(roomId, workspace) {
+async function finishChannel(roomId, workspace, flag = true) {
     const user = await User.findOne({
         where: {
             channelId: roomId
@@ -437,7 +439,7 @@ async function finishChannel(roomId, workspace) {
         if (global.slackWeb[workspace.accessToken]) {
             await global.slackWeb[workspace.accessToken].chat.postMessage({
                 channel: user.channelId,
-                text: `_Chat closed due to inactivity_.`
+                text: flag? `_Chat closed due to inactivity_.`: `_Chat closed by ${user.name}_.`
             });
         }
 
