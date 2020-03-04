@@ -104,7 +104,7 @@ exports.init = async () => {
                         ts: moment(user.createdAt).utcOffset(0).toISOString()
                     });
                     await global.slackWeb[workspace.accessToken].chat.postMessage({
-                        text: `*${user.name}* _is on ${data.currentPage}_`,
+                        text: `*${user.name}* _is on_ ${data.currentPage}`,
                         channel: user.channelId
                     });
                     if (data.status == 'not-started') {
