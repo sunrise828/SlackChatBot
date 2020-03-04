@@ -120,16 +120,31 @@ exports.init = async (workspace) => {
             sent: 1,
             slackUser: ''
           });
-          
+
+          axios.post(config.apiHost + 'importticket', {
+            requestorName: chatUser.name,
+            requestorEmail: chatUser.email,
+            serialId: chatUser.workspaceId,
+            content: `${slackUserName} has joined chat.`,
+            domain: 'slack',
+            userId: event.user
+          })
+            .then(async (res) => {
+              console.log('api called', res.data);
+            })
+            .catch(err => {
+              console.log('api failed', err);
+            });
+
           if (chatUser.slackUserName)
             chatUser.slackUserName = chatUser.slackUserName + ',' + slackUserRes.user.name;
-          else 
+          else
             chatUser.slackUserName = slackUserRes.user.name;
         }
         await chatUser.save();
       }
       try {
-        
+
         await addPresenceSubscriptions();
         socket.emitToSocketId(event.channel, 'Joined:Slack', {
           author: 'System',
@@ -139,7 +154,7 @@ exports.init = async (workspace) => {
           ts: moment(history.createdAt).utcOffset(0).toISOString(),
           domain: 'slack'
         })
-        
+
       } catch (error) {
         console.log('Failed to subscribe to presence, error: ', error);
       }
@@ -244,7 +259,11 @@ async function noSupport(channelId) {
     user.status = 1;
     await user.save();
     socket.emitToSocketId(channelId, 'NoSupport');
-
+    const history = await History.create({
+      text: 'Ticket finished',
+      channel: channelId,
+      domain: 'system'
+    });
     if (user.ticketId) {
       axios.post(config.apiHost + 'finishticket', {
         requestorName: user.name,

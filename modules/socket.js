@@ -103,6 +103,10 @@ exports.init = async () => {
                         welcomeMsg: workspace.welcomeMessage,
                         ts: moment(user.createdAt).utcOffset(0).toISOString()
                     });
+                    await global.slackWeb[workspace.accessToken].chat.postMessage({
+                        text: `*${user.name}* _is on ${data.currentPage}_`,
+                        channel: user.channelId
+                    });
                     if (data.status == 'not-started') {
                         emitToSocketId(plainUser.channelId, 'Room:Created', {
                             sessionId: plainUser.sessionId,
@@ -244,6 +248,7 @@ async function roomInit(socket, user, workspace, refresh) {
                 "text": "Name: " + plainUser.name + "\n Email: " + plainUser.email + "\nPage: " + plainUser.webPage
             }]
         });
+
     });
 
     socket.in(`${roomId}`).on('Typing', async (message) => {
@@ -292,20 +297,7 @@ async function roomInit(socket, user, workspace, refresh) {
                     params.ticketId = user.ticketId;
                 }
 
-                axios.post(config.apiHost + 'importticket', params)
-                    .then(async (res) => {
-                        console.log('ticket id', res.data);
-                        if (res.data.status && !user.ticketId) {
-                            user.ticketId = res.data.ticket;
-                            await user.save();
-                            emitToSocketId(user.channelId, 'Ticket:Create', {
-                                ticket: user.ticketId
-                            });
-                        }
-                    })
-                    .catch(err => {
-                        console.log('api failed', err);
-                    });
+                importTicket(params);
             } else {
                 console.log('error message to slack', res);
             }
@@ -321,6 +313,15 @@ async function roomInit(socket, user, workspace, refresh) {
         }
         finishChannel(roomId, workspace, false);
         emitToSocketId(roomId, 'Finished');
+
+        importTicket({
+            requestorName: user.name,
+            requestorEmail: user.email,
+            serialId: user.workspaceId,
+            content: `${user.ticketId} finished.`,
+            domain: 'system',
+            ticketId: user.ticketId
+        });
     });
 
     socket.in(`${roomId}`).on('disconnect', async (message) => {
@@ -329,6 +330,21 @@ async function roomInit(socket, user, workspace, refresh) {
             global.slackWeb[workspace.accessToken].chat.postMessage({
                 text: `*${user.name}* _went offline_.`,
                 channel: user.channelId
+            });
+
+            await History.create({
+                text: `<b>${user.name}</b> <em>went offline</em>.`,
+                channel: roomId,
+                domain: 'system-user'
+            });
+
+            importTicket({
+                requestorName: user.name,
+                requestorEmail: user.email,
+                serialId: user.workspaceId,
+                content: `<b>${user.name}</b> <em>went offline</em>.`,
+                domain: 'system',
+                ticketId: user.ticketId
             });
         }
     });
@@ -389,15 +405,28 @@ async function clearClientTimer(roomId, workspace, keys) {
     }
     if (workspace.warnning.length > 0) {
         global.clientTimers[roomId] = {
-            timer: setInterval(() => {
+            timer: setInterval(async () => {
                 console.log('roomId', roomId);
                 global.clientTimers[roomId].index++;
                 const warnning = workspace.warnning.find(item => (item.warnMinute == global.clientTimers[roomId].index));
                 if (warnning && warnning.warnMessage && warnning.warnMessage.length > 0) {
                     const message = replaceKeywords(warnning.warnMessage, keys)
+                    const history = await History.create({
+                        text: message,
+                        channel: roomId,
+                        domain: 'system'
+                    });
                     emitToSocketId(roomId, 'Alert', {
-                        ts: moment().utcOffset(0).toISOString(),
+                        ts: moment(history.createdAt).utcOffset(0).toISOString(),
                         msg: message
+                    });
+                    importTicket({
+                        requestorName: keys['name'],
+                        requestorEmail: keys['email'],
+                        serialId: keys.workspaceId,
+                        content: message,
+                        domain: 'system',
+                        ticketId: keys.ticketId
                     });
                 }
 
@@ -413,6 +442,16 @@ async function clearClientTimer(roomId, workspace, keys) {
             index: 0
         };
     }
+}
+
+function importTicket(params) {
+    axios.post(config.apiHost + 'importticket', params)
+    .then(async (res) => {
+        console.log('import ticket', res.data);
+    })
+    .catch(err => {
+        console.log('api failed', err);
+    });
 }
 
 function replaceKeywords(str, keys) {

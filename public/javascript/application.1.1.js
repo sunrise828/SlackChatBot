@@ -75,7 +75,7 @@ $(function () {
             } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
                 $('#message').addClass('message_ios');
             }
-        
+
         } else if (chatStatus == 'not-started') {
             $('.container-fluid.loader').hide();
             $('#form-presales').show();
@@ -83,7 +83,7 @@ $(function () {
             $('#form-chat-wrap').hide();
             $('#message-area').hide();
             $('#form-chat').hide();
-        }       
+        }
     }
 
     function init() {
@@ -102,14 +102,6 @@ $(function () {
             start: 'bottom'
         });
 
-        $('.silc-btn-button-close').click(function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            $('#form-chat-wrap').hide();
-            $('#message-area').hide();
-            $('#form-chat').hide();
-            $('#form-close-chat').show();
-        });
         if (window.self === window.top) {
             var $viewportMeta = $('meta[name="viewport"]');
             $('input, select, textarea').bind('focus blur', function (event) {
@@ -140,7 +132,7 @@ $(function () {
 
         if (vname && vemail) {
             $('button .loader').removeClass('loaded');
-            
+
             const param = {
                 author: author,
                 wid: wid,
@@ -231,15 +223,14 @@ $(function () {
 
     // socket init
     function socketInit() {
-        socket.on('Welcome', function(event) {
+        socket.on('Welcome', function (event) {
             const utcTime = moment(event.ts).utcOffset(0).toISOString();
             var time = moment(utcTime).local().format('HH:mm a');
             $('.siButtonActionClose-chat').show();
             $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
             $('#status .welcome-msg .si-block-paragraph').html(event.welcomeMsg);
-            setTimeout(function() {
-                if ($('#status .ticket-info').length <= 0) {
-                    $('#status').append(`<div class="sic-block sic-block-admin ticket-info">
+            setTimeout(function () {
+                var html = `<div class="sic-block sic-block-admin ticket-info">
                         <div class="si-comment-wrapper si-comment-wrapper-admin">
                             <div class="si-comment-wrapper-admin-img">
                                 <div class="si-img">
@@ -256,10 +247,14 @@ $(function () {
                             <div class="si-comment-wrapper-admin-name">${time}</div>
                         </div>
                         <span></span>
-                    </div>`);
+                    </div>`;
+                if ($('#status .ticket-info').length <= 0) {
+                    $('#status').append(html);
+                } else {
+                    $('#status .ticket-info').replaceWith(html);
                 }
             }, 500);
-                    
+
         })
 
         socket.on('Joined:Slack', function (data) {
@@ -281,12 +276,15 @@ $(function () {
 
         socket.on('Message', function (data) {
             onMessage(data);
+            if (data.domain != 'user')
+                parent.postMessage('siMessage', '*');
         });
 
         socket.on('NoSupport', function () {
             chatStatus = 'not-support';
             localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
             renderPans();
+            parent.postMessage('siMessage', '*');
         });
 
         socket.on('Ticket:Create', function (event) {
@@ -294,7 +292,7 @@ $(function () {
         })
 
         socket.on('Histories', function (event) {
-            $('.container-fluid.loader').hide();            
+            $('.container-fluid.loader').hide();
             $('button .loader').removeClass('loaded');
             $('.siButtonActionClose-chat').show();
             chatContent.html('');
@@ -303,6 +301,7 @@ $(function () {
             }
             if (event.msgs.length > 0) {
                 event.msgs.forEach(msg => {
+                    if (msg.domain == 'system-user') return;
                     const utcTime = moment(msg.createdAt).utcOffset(0).toISOString();
                     var date = moment(utcTime).local().format('HH:mm a');
                     if (msg.domain == 'slack') {
@@ -362,6 +361,9 @@ $(function () {
             const utcTime = moment(event.ts).utcOffset(0).toISOString();
             var time = moment(utcTime).local().format('HH:mm a');
             addMessage('System', event.msg, time, 'admin', systemIcon, 'Alert');
+            if (!isCWActive)
+                play_sound();
+            parent.postMessage('siMessage', '*');
         });
 
         socket.on('Finish:Alert', function () {
@@ -449,31 +451,9 @@ $(function () {
             refresh: siRefresh
         });
     }
-    $('#btn-close-chat').click(function (e) {
+    $(body).on('click', '#btn-continue-chat', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        console.log(chatStatus);
-        socket.emit('Finished', { status: 'closed' });
-        chatStatus = 'not-started';
-        localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
-        socket.disconnect();
-        socket = null;
-        $('#errorMsg').html('');
-        $('#form-close-chat').hide()
-        $('#form-presales').show();
-        $('#form-chat-wrap').hide();
-        $('#message-area').hide();
-        $('#form-chat').hide();
-        $('#title-text').html(widgetTitle);
-        $('.siButtonActionClose-chat').hide();
-        $('button .loader').addClass('loaded');
-
-    });
-
-    $('#btn-continue-chat').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        // chatStatus = 'queue';
         $('#form-chat-wrap').show();
         if (chatStatus == 'not-started' || chatStatus == 'close') {
             $('#message-area').hide();
@@ -482,26 +462,69 @@ $(function () {
         }
 
         $('#form-chat').show();
-        $('#form-close-chat').hide();
-    })
+        $('#form-close-chat').remove();
+    });
+
+    $(body).on('click', '#btn-close-chat', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        socket.emit('Finished', { status: 'closed' });
+        chatStatus = 'not-started';
+        localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
+        socket.disconnect();
+        socket = null;
+        $('#errorMsg').html('');
+        $('#form-close-chat').remove();
+        $('#form-presales').show();
+        $('#form-chat-wrap').hide();
+        $('#message-area').hide();
+        $('#form-chat').hide();
+        $('#title-text').html(widgetTitle);
+        $('.siButtonActionClose-chat').hide();
+        $('button .loader').addClass('loaded');
+    });
 
     $('.silc-btn-button-close').click(function (e) {
+        $('#form-close-chat').remove();
         if ("not-started" !== chatStatus) {
             e.preventDefault();
             e.stopPropagation();
-            $('#form-chat-wrap').hide();
-            $('#message-area').hide();
-            $('#form-chat').hide();
+            $('#form-close-chat-org').clone().attr('id', 'form-close-chat').appendTo(chatContent);
             $('#form-close-chat').show();
+            var scrollTo_val = $('#form-chat').prop('scrollHeight') + 'px';
+            $('#form-chat').slimScroll({
+                scrollTo: scrollTo_val
+            });
+            setTimeout(() => {
+
+
+                $('#btn-continue-chat').click(function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    $('#form-chat-wrap').show();
+                    if (chatStatus == 'not-started' || chatStatus == 'close') {
+                        $('#message-area').hide();
+                    } else {
+                        $('#message-area').show();
+                    }
+
+                    $('#form-chat').show();
+                    $('#form-close-chat').remove();
+                })
+            }, 50);
         }
 
+    });
+
+    $('.silc-btn-button-minimize').click(function (e) {
+        parent.postMessage('siMinimize', '*');
     });
 
     function chatClosed() {
         $('#form-chat-wrap').show();
         $('#form-chat').show();
         $('#message-area').hide();
-        $('#form-close-chat').hide();        
+        $('#form-close-chat').hide();
     }
 
     function addMessage(author, message, datetime, msgType, agentPhoto, chatStatus) {

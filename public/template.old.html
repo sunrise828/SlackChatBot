@@ -54,7 +54,7 @@
         <div class="row justify-content-center align-items-center">
             <div class="col-8">
                 <div class="text-center">
-                    <div><i class="fas fa-align-right fa-3x"></i></div>
+                    <div ><i class="fas fa-align-right fa-3x"></i></div>
                     <h4>Thanks for your message. We will be touch soon!</h4>
                     <button type="button" class="button btn-primary rounded" id="render_try">Retry</button>
                 </div>
@@ -65,10 +65,10 @@
         <div class="row justify-content-center align-items-center">
             <div class="col-8">
                 <div class="text-center">
-                    <div class="spinner-border text-success" role="status">
+                    <div class="spinner-border text-primary" role="status">
                         <span class="sr-only">Loading histories...</span>
                     </div>
-                    <h4 class="text-success">Loading histories...</h4>
+                    <h4>Loading histories...</h4>                    
                 </div>
             </div>
         </div>
@@ -77,8 +77,7 @@
         <div class="header-div" id="header-div">
             <a id="title" href="#" class="title title-bg title-font">
                 <span id="title-text">Live Chat by RTP</span>
-                <div class="siButtonActions" style="float:right;display: inline-flex;margin-top:3px;">
-                    <div class="siButtonActionClose-chat silc-btn-button-minimize"></div>
+                <div class="siButtonActions" style="float:right;display: inline-flex">
                     <div class="siButtonActionClose-chat silc-btn-button-close"></div>
                 </div>
             </a>
@@ -88,21 +87,13 @@
                 <div class="top-shadow">
                 </div>
                 <div id="body-inner">
-                    <div class="sic-block sic-block-admin" style="display: none" id="form-close-chat-org">
-                        <div id="confirm-close-chat" class="container-fluid">
-                            <div class="row">
-                                <div class="col">
-                                    <p style="text-align:center">Do you want to close your chat?</p>
-                                </div>
-                            </div>
-                            <div class="row actions">
-                                <div class="col-6">
-                                    <button class="btn" id="btn-close-chat" type="button">Close Chat</button>
-                                </div>
-                                <div class="col-6">
-                                    <button class="btn btn-success" id="btn-continue-chat" type="button">Cancel</button>
-                                </div>
-                            </div>
+                    <div style="display: none;height:500px" class="view" id="form-close-chat">
+                        <div id="confirm-close-chat">
+                            <p style="text-align:center">Do you want to close your chat?</p>
+                            <p class="actions" style="padding:5px;">
+                                <button class="btn" id="btn-close-chat" type="button">Close Chat</button>
+                                <button class="btn btn-success" id="btn-continue-chat" type="button">Cancel</button>
+                            </p>
                         </div>
                     </div>
                     <div style="display: block;" class="view" id="form-presales">
@@ -170,7 +161,6 @@
                                 </div>
                             </div>
                             <div id="chatContent" class="sic-blocks">
-
                             </div>
                         </div>
                     </div>
@@ -191,7 +181,7 @@
         </span>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jQuery-slimScroll/1.3.8/jquery.slimscroll.min.js"></script>
-    <audio id="audiotag1" src="./wave/speech_on.wav" preload="auto"></audio>
+    <audio id="audiotag1" src="./images/newIm.wav" preload="auto"></audio>
 </body>
 
 </html>
