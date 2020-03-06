@@ -313,15 +313,6 @@ async function roomInit(socket, user, workspace, refresh) {
         }
         finishChannel(roomId, workspace, false);
         emitToSocketId(roomId, 'Finished');
-
-        importTicket({
-            requestorName: user.name,
-            requestorEmail: user.email,
-            serialId: user.workspaceId,
-            content: `${user.ticketId} finished.`,
-            domain: 'system',
-            ticketId: user.ticketId
-        });
     });
 
     socket.in(`${roomId}`).on('disconnect', async (message) => {
@@ -489,13 +480,22 @@ async function finishChannel(roomId, workspace, flag = true) {
             });
         }
 
+        // importTicket({
+        //     requestorName: user.name,
+        //     requestorEmail: user.email,
+        //     serialId: user.workspaceId,
+        //     content: flag ? `<em>Chat closed due to inactivity</em>.` : `<em>Chat closed by ${user.name}.</em>`,
+        //     domain: 'system',
+        //     ticketId: user.ticketId
+        // });
         if (user.ticketId) {
             axios.post(config.apiHost + 'finishticket', {
                 requestorName: user.name,
                 requestorEmail: user.email,
                 serialId: user.workspaceId,
-                domain: 'user',
-                ticketId: user.ticketId
+                domain: flag? 'system': 'user',
+                ticketId: user.ticketId,
+                content: flag ? `<em>Chat closed due to inactivity</em>.` : `<em>Chat closed by ${user.name}.</em>`
             })
                 .then(async (res) => {
                     if (res.status) {
