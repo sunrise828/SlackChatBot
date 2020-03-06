@@ -140,21 +140,21 @@ exports.init = async (workspace) => {
             chatUser.slackUserName = chatUser.slackUserName + ',' + slackUserRes.user.name;
           else
             chatUser.slackUserName = slackUserRes.user.name;
+          
+          socket.emitToSocketId(event.channel, 'Joined:Slack', {
+            author: 'System',
+            message: `${slackUserName} has joined chat.`,
+            type: event.type,
+            event_ts: moment(history.createdAt).utcOffset(0).toISOString(),
+            ts: moment(history.createdAt).utcOffset(0).toISOString(),
+            domain: 'slack',
+            photoUrl: slackUserRes.user.profile.image_original || slackUserRes.user.profile.image_24
+          })
         }
         await chatUser.save();
       }
       try {
-
         await addPresenceSubscriptions();
-        socket.emitToSocketId(event.channel, 'Joined:Slack', {
-          author: 'System',
-          message: `${slackUserName} has joined chat.`,
-          type: event.type,
-          event_ts: moment(history.createdAt).utcOffset(0).toISOString(),
-          ts: moment(history.createdAt).utcOffset(0).toISOString(),
-          domain: 'slack'
-        })
-
       } catch (error) {
         console.log('Failed to subscribe to presence, error: ', error);
       }

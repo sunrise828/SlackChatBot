@@ -26,6 +26,7 @@ $(function () {
     var isCWActive = true;
     var sessionId = "";
     var socket = null;
+    
     try {
         sessionId = localStorage.getItem("rtp_chatsid_" + wid);
         if (!sessionId || sessionId.length === 0) {
@@ -90,6 +91,8 @@ $(function () {
         if (chatStatus != 'not-started') {
             socket = io(chatUrl);
             socketInit();
+            var tempIcon = localStorage.getItem('support-man-icon');
+            supportManIcon = tempIcon || chatwidget_vars.baseUrl + 'images/material-person-white.png';
         }
         parent.postMessage(chatStatus == 'not-started' ? 'siNew' : 'siRefresh', '*');
         var siName = localStorage.getItem("rtp_name");
@@ -258,6 +261,11 @@ $(function () {
         })
 
         socket.on('Joined:Slack', function (data) {
+            if (data.photoUrl && data.photoUrl.length > 0) {
+                supportManIcon = data.photoUrl;
+                localStorage.setItem('support-man-icon', supportManIcon);
+            }
+            
             const utcTime = moment(data.ts).utcOffset(0).toISOString();
             var time = moment(utcTime).local().format('HH:mm a');
             addMessage('System', data.message, time, 'admin', systemIcon, 'joined');
