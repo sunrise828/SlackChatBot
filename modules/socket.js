@@ -415,14 +415,14 @@ async function clearClientTimer(roomId, workspace, keys) {
                         ts: moment(history.createdAt).utcOffset(0).toISOString(),
                         msg: message
                     });
-                    importTicket({
-                        requestorName: keys['name'],
-                        requestorEmail: keys['email'],
-                        serialId: keys.workspaceId,
-                        content: message,
-                        domain: 'system',
-                        ticketId: keys.ticketId
-                    });
+                    // importTicket({
+                    //     requestorName: keys['name'],
+                    //     requestorEmail: keys['email'],
+                    //     serialId: keys.workspaceId,
+                    //     content: message,
+                    //     domain: 'system',
+                    //     ticketId: keys.ticketId
+                    // });
                 }
 
                 if (global.clientTimers[roomId].index == workspace.limitTime) {
