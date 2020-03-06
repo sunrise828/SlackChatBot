@@ -327,25 +327,29 @@ async function roomInit(socket, user, workspace, refresh) {
     socket.in(`${roomId}`).on('disconnect', async (message) => {
         const conNum = Object.keys(global.io.to(roomId).connected).length;
         if (global.slackWeb[workspace.accessToken] && conNum < 1) {
-            global.slackWeb[workspace.accessToken].chat.postMessage({
-                text: `*${user.name}* _went offline_.`,
-                channel: user.channelId
-            });
+            const newUser = await user.reload();
 
-            await History.create({
-                text: `<b>${user.name}</b> <em>went offline</em>.`,
-                channel: roomId,
-                domain: 'system-user'
-            });
-
-            importTicket({
-                requestorName: user.name,
-                requestorEmail: user.email,
-                serialId: user.workspaceId,
-                content: `<b>${user.name}</b> <em>went offline</em>.`,
-                domain: 'system',
-                ticketId: user.ticketId
-            });
+            if (newUser.status < 1) {
+                global.slackWeb[workspace.accessToken].chat.postMessage({
+                    text: `*${user.name}* _went offline_.`,
+                    channel: user.channelId
+                });
+    
+                await History.create({
+                    text: `<b>${user.name}</b> <em>went offline</em>.`,
+                    channel: roomId,
+                    domain: 'system-user'
+                });
+    
+                importTicket({
+                    requestorName: user.name,
+                    requestorEmail: user.email,
+                    serialId: user.workspaceId,
+                    content: `<b>${user.name}</b> <em>went offline</em>.`,
+                    domain: 'system',
+                    ticketId: user.ticketId
+                });
+            }
         }
     });
 }
