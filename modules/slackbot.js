@@ -148,6 +148,7 @@ exports.init = async (workspace) => {
             event_ts: moment(history.createdAt).utcOffset(0).toISOString(),
             ts: moment(history.createdAt).utcOffset(0).toISOString(),
             domain: 'slack',
+            supportName: slackUserName,
             photoUrl: slackUserRes.user.profile.image_original || slackUserRes.user.profile.image_24
           })
         }

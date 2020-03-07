@@ -415,19 +415,20 @@ async function clearClientTimer(roomId, workspace, keys) {
                         ts: moment(history.createdAt).utcOffset(0).toISOString(),
                         msg: message
                     });
-                    // importTicket({
-                    //     requestorName: keys['name'],
-                    //     requestorEmail: keys['email'],
-                    //     serialId: keys.workspaceId,
-                    //     content: message,
-                    //     domain: 'system',
-                    //     ticketId: keys.ticketId
-                    // });
+                    importTicket({
+                        requestorName: keys['name'],
+                        requestorEmail: keys['email'],
+                        serialId: keys.workspaceId,
+                        content: message,
+                        domain: 'system',
+                        ticketId: keys.ticketId
+                    });
                 }
 
                 if (global.clientTimers[roomId].index == workspace.limitTime) {
                     emitToSocketId(roomId, 'Finish:Alert', {
-                        ts: moment().utcOffset(0).toISOString()
+                        ts: moment().utcOffset(0).toISOString(),
+                        msg: `This chat has been completed and a copy of the transcript has been emailed to you at `
                     });
                     clearInterval(global.clientTimers[roomId].timer);
                     delete global.clientTimers[roomId];
@@ -480,14 +481,14 @@ async function finishChannel(roomId, workspace, flag = true) {
             });
         }
 
-        // importTicket({
-        //     requestorName: user.name,
-        //     requestorEmail: user.email,
-        //     serialId: user.workspaceId,
-        //     content: flag ? `<em>Chat closed due to inactivity</em>.` : `<em>Chat closed by ${user.name}.</em>`,
-        //     domain: 'system',
-        //     ticketId: user.ticketId
-        // });
+        importTicket({
+            requestorName: user.name,
+            requestorEmail: user.email,
+            serialId: user.workspaceId,
+            content: flag ? `<em>Chat closed due to inactivity</em>.` : `<em>Chat closed by ${user.name}.</em>`,
+            domain: 'system',
+            ticketId: user.ticketId
+        });
         if (user.ticketId) {
             axios.post(config.apiHost + 'finishticket', {
                 requestorName: user.name,

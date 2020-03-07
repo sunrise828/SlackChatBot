@@ -21,6 +21,7 @@ $(function () {
     var startNewMessage = chatwidget_vars.startNewMessage;
     var waitingMessage = chatwidget_vars.waitingMessage;
     var systemIcon = chatwidget_vars.baseUrl + 'images/logo-white.png';
+    var supportManName = 'Support Man';
     var supportManIcon = chatwidget_vars.baseUrl + 'images/material-person-white.png';
     var widgetTitle = chatwidget_vars.widgetTitle;
     var isCWActive = true;
@@ -50,6 +51,7 @@ $(function () {
 
     function renderPans() {
         $('button .loader').addClass('loaded');
+        $('#title-text').addClass('loaded');
         if (chatStatus == 'not-support') {
             $('.container-fluid.loader').hide();
             $('.no-support').show();
@@ -84,6 +86,7 @@ $(function () {
             $('#form-chat-wrap').hide();
             $('#message-area').hide();
             $('#form-chat').hide();
+            $('#title-text').removeClass('loaded');
         }
     }
 
@@ -93,6 +96,7 @@ $(function () {
             socketInit();
             var tempIcon = localStorage.getItem('support-man-icon');
             supportManIcon = tempIcon || chatwidget_vars.baseUrl + 'images/material-person-white.png';
+            supportManName = localStorage.getItem('support-man-name') || 'Support Man';
         }
         parent.postMessage(chatStatus == 'not-started' ? 'siNew' : 'siRefresh', '*');
         var siName = localStorage.getItem("rtp_name");
@@ -135,7 +139,7 @@ $(function () {
 
         if (vname && vemail) {
             $('button .loader').removeClass('loaded');
-
+            $('#title-text').removeClass('loaded');
             const param = {
                 author: author,
                 wid: wid,
@@ -166,6 +170,7 @@ $(function () {
 
     function showMainPage() {
         $('button .loader').addClass('loaded');
+        $('#title-text').addClass('loaded');
         $('#form-presales').hide();
         $("#chatContent").html('');
         $('#form-chat-wrap').show();
@@ -188,7 +193,7 @@ $(function () {
 
     function onMessage(response) {
         var json = response;
-        var date = moment(response.event_ts).local().format('HH:mm a');
+        var date = moment(response.event_ts).local().format('hh:mm a');
         if (json.status == 'aTyping') {
             $('#typingIndicator').removeClass('hide');
             clearAgentTyping();
@@ -202,7 +207,7 @@ $(function () {
             clearAgentTyping();
             if (json.domain == 'slack') {
                 var ap = supportManIcon;
-                addMessage(json.author, json.message, date, json.type, ap, json.chatStatus);
+                addMessage(supportManName, json.message, date, json.type, ap, json.chatStatus);
                 if (!isCWActive)
                     play_sound();
             } else {
@@ -228,7 +233,7 @@ $(function () {
     function socketInit() {
         socket.on('Welcome', function (event) {
             const utcTime = moment(event.ts).utcOffset(0).toISOString();
-            var time = moment(utcTime).local().format('HH:mm a');
+            var time = moment(utcTime).local().format('hh:mm a');
             $('.siButtonActionClose-chat').show();
             $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
             $('#status .welcome-msg .si-block-paragraph').html(event.welcomeMsg);
@@ -265,9 +270,14 @@ $(function () {
                 supportManIcon = data.photoUrl;
                 localStorage.setItem('support-man-icon', supportManIcon);
             }
+
+            if (data.supportName && data.supportName.length > 0) {
+                supportManName = data.supportName;
+                localStorage.setItem('support-man-name', supportManName);
+            }
             
             const utcTime = moment(data.ts).utcOffset(0).toISOString();
-            var time = moment(utcTime).local().format('HH:mm a');
+            var time = moment(utcTime).local().format('hh:mm a');
             addMessage('System', data.message, time, 'admin', systemIcon, 'joined');
         });
 
@@ -302,6 +312,7 @@ $(function () {
         socket.on('Histories', function (event) {
             $('.container-fluid.loader').hide();
             $('button .loader').removeClass('loaded');
+            $('#title-text').addClass('loaded');
             $('.siButtonActionClose-chat').show();
             chatContent.html('');
             if (event.ticket) {
@@ -311,7 +322,7 @@ $(function () {
                 event.msgs.forEach(msg => {
                     if (msg.domain == 'system-user') return;
                     const utcTime = moment(msg.createdAt).utcOffset(0).toISOString();
-                    var date = moment(utcTime).local().format('HH:mm a');
+                    var date = moment(utcTime).local().format('hh:mm a');
                     if (msg.domain == 'slack') {
                         addMessage('Support Man', msg.text, date,
                             '', supportManIcon, 'queue');
@@ -367,16 +378,21 @@ $(function () {
 
         socket.on('Alert', function (event) {
             const utcTime = moment(event.ts).utcOffset(0).toISOString();
-            var time = moment(utcTime).local().format('HH:mm a');
+            var time = moment(utcTime).local().format('hh:mm a');
             addMessage('System', event.msg, time, 'admin', systemIcon, 'Alert');
             if (!isCWActive)
                 play_sound();
             parent.postMessage('siMessage', '*');
         });
 
-        socket.on('Finish:Alert', function () {
+        socket.on('Finish:Alert', function (event) {
             chatStatus = "not-started";
             localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
+            var email = localStorage.getItem("rtp_email");
+            var msg = 'This chat has been completed and a copy of the transcript has been emailed to you at ' + email;
+            const utcTime = moment(event.ts).utcOffset(0).toISOString();
+            var time = moment(utcTime).local().format('hh:mm a');
+            addMessage('System', msg, time, 'admin', systemIcon, 'Alert');
             chatClosed();
         });
 
@@ -390,14 +406,17 @@ $(function () {
         localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
         socket.disconnect();
         socket = null;
-        $('#form-close-chat').hide()
-        $('#form-presales').show();
-        $('#form-chat-wrap').hide();
+        // $('#form-close-chat').hide()
+        // $('#form-presales').show();
+        // $('#form-chat-wrap').hide();
         $('#message-area').hide();
-        $('#form-chat').hide();
-        $('#title-text').html(widgetTitle);
+        // $('#form-chat').hide();
+        // $('#title-text').html(widgetTitle);
         $('button .loader').addClass('loaded');
         $('.siButtonActionClose-chat').show();
+        var email = localStorage.getItem("rtp_email");
+        var msg = 'This chat has been completed and a copy of the transcript has been emailed to you at ' + email;
+        addMessage('System', msg, new Date().getTime(), 'admin', systemIcon, 'Alert');
     }
 
     input.keydown(function (e) {
@@ -483,13 +502,18 @@ $(function () {
         socket = null;
         $('#errorMsg').html('');
         $('#form-close-chat').remove();
-        $('#form-presales').show();
-        $('#form-chat-wrap').hide();
+        // $('#form-presales').show();
+        // $('#form-chat-wrap').hide();
         $('#message-area').hide();
-        $('#form-chat').hide();
-        $('#title-text').html(widgetTitle);
-        $('.siButtonActionClose-chat').hide();
+        // $('#form-chat').hide();
+        // $('#title-text').html(widgetTitle);
+        // $('.siButtonActionClose-chat').hide();
         $('button .loader').addClass('loaded');
+        // $('#title-text').addClass('loaded');
+        var email = localStorage.getItem("rtp_email");
+        var msg = 'This chat has been completed and a copy of the transcript has been emailed to you at ' + email;
+        var time = moment().local().format('hh:mm a');
+        addMessage('System', msg, time, 'admin', systemIcon, 'Alert');
     });
 
     $('.silc-btn-button-close').click(function (e) {
