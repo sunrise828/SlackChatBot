@@ -312,7 +312,12 @@ async function roomInit(socket, user, workspace, refresh) {
             delete global.clientTimers[roomId];
         }
         finishChannel(roomId, workspace, false);
-        emitToSocketId(roomId, 'Finished');
+        let msg = `This chat has been completed and a copy of the transcript has been emailed to you at ` + plainUser.email;
+        const warnning = workspace.warnning[workspace.warnning.length - 1];
+        if (warnning && warnning.warnMessage && warnning.warnMessage.length > 0) {
+            msg = replaceKeywords(warnning.warnMessage, plainUser);
+        }
+        emitToSocketId(roomId, 'Finished', {msg: msg});
     });
 
     socket.in(`${roomId}`).on('disconnect', async (message) => {
@@ -411,10 +416,12 @@ async function clearClientTimer(roomId, workspace, keys) {
                         channel: roomId,
                         domain: 'system'
                     });
-                    emitToSocketId(roomId, 'Alert', {
-                        ts: moment(history.createdAt).utcOffset(0).toISOString(),
-                        msg: message
-                    });
+                    if (global.clientTimers[roomId].index < workspace.limitTime) {
+                        emitToSocketId(roomId, 'Alert', {
+                            ts: moment(history.createdAt).utcOffset(0).toISOString(),
+                            msg: message
+                        });
+                    }
                     importTicket({
                         requestorName: keys['name'],
                         requestorEmail: keys['email'],
@@ -426,9 +433,13 @@ async function clearClientTimer(roomId, workspace, keys) {
                 }
 
                 if (global.clientTimers[roomId].index == workspace.limitTime) {
+                    let message = `This chat has been completed and a copy of the transcript has been emailed to you at ` + keys.email;
+                    if (warnning.warnMessage && warnning.warnMessage.length > 0) {
+                        message = replaceKeywords(warnning.warnMessage, keys);
+                    }
                     emitToSocketId(roomId, 'Finish:Alert', {
                         ts: moment().utcOffset(0).toISOString(),
-                        msg: `This chat has been completed and a copy of the transcript has been emailed to you at `
+                        msg: message
                     });
                     clearInterval(global.clientTimers[roomId].timer);
                     delete global.clientTimers[roomId];

@@ -388,35 +388,30 @@ $(function () {
         socket.on('Finish:Alert', function (event) {
             chatStatus = "not-started";
             localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
-            var email = localStorage.getItem("rtp_email");
-            var msg = 'This chat has been completed and a copy of the transcript has been emailed to you at ' + email;
-            const utcTime = moment(event.ts).utcOffset(0).toISOString();
-            var time = moment(utcTime).local().format('hh:mm a');
-            addMessage('System', msg, time, 'admin', systemIcon, 'Alert');
-            chatClosed();
+            // var email = localStorage.getItem("rtp_email");
+            // var msg = 'This chat has been completed and a copy of the transcript has been emailed to you at ' + email;
+            // const utcTime = moment(event.ts).utcOffset(0).toISOString();
+            // var time = moment(utcTime).local().format('hh:mm a');
+            // addMessage('System', event.msg, time, 'admin', systemIcon, 'Alert');
+            chatFinished(event.msg);
         });
 
         socket.on('Finished', function (event) {
-            chatFinished();
+            chatFinished(event.msg);
         });
     };
 
-    function chatFinished() {
+    function chatFinished(msg) {
         chatStatus = 'not-started';
         localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
         socket.disconnect();
         socket = null;
-        // $('#form-close-chat').hide()
-        // $('#form-presales').show();
-        // $('#form-chat-wrap').hide();
+        $('#finished').html(msg).show();
         $('#message-area').hide();
-        // $('#form-chat').hide();
-        // $('#title-text').html(widgetTitle);
+        $('#wrapper').hide();
         $('button .loader').addClass('loaded');
         $('.siButtonActionClose-chat').show();
-        var email = localStorage.getItem("rtp_email");
-        var msg = 'This chat has been completed and a copy of the transcript has been emailed to you at ' + email;
-        addMessage('System', msg, new Date().getTime(), 'admin', systemIcon, 'Alert');
+        parent.postMessage('siFinished', '*');
     }
 
     input.keydown(function (e) {
@@ -496,24 +491,24 @@ $(function () {
         e.preventDefault();
         e.stopPropagation();
         socket.emit('Finished', { status: 'closed' });
-        chatStatus = 'not-started';
-        localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
-        socket.disconnect();
-        socket = null;
-        $('#errorMsg').html('');
-        $('#form-close-chat').remove();
-        // $('#form-presales').show();
-        // $('#form-chat-wrap').hide();
-        $('#message-area').hide();
-        // $('#form-chat').hide();
-        // $('#title-text').html(widgetTitle);
-        // $('.siButtonActionClose-chat').hide();
-        $('button .loader').addClass('loaded');
+        // chatStatus = 'not-started';
+        // localStorage.setItem('rtp_chatstatus_' + wid, chatStatus);
+        // socket.disconnect();
+        // socket = null;
+        // $('#errorMsg').html('');
+        // $('#form-close-chat').remove();
+        // // $('#form-presales').show();
+        // // $('#form-chat-wrap').hide();
+        // $('#message-area').hide();
+        // // $('#form-chat').hide();
+        // // $('#title-text').html(widgetTitle);
+        // // $('.siButtonActionClose-chat').hide();
+        // $('button .loader').addClass('loaded');
         // $('#title-text').addClass('loaded');
-        var email = localStorage.getItem("rtp_email");
-        var msg = 'This chat has been completed and a copy of the transcript has been emailed to you at ' + email;
-        var time = moment().local().format('hh:mm a');
-        addMessage('System', msg, time, 'admin', systemIcon, 'Alert');
+        // var email = localStorage.getItem("rtp_email");
+        // var msg = 'This chat has been completed and a copy of the transcript has been emailed to you at ' + email;
+        // var time = moment().local().format('hh:mm a');
+        // addMessage('System', msg, time, 'admin', systemIcon, 'Alert');
     });
 
     $('.silc-btn-button-close').click(function (e) {
@@ -552,11 +547,16 @@ $(function () {
         parent.postMessage('siMinimize', '*');
     });
 
-    function chatClosed() {
-        $('#form-chat-wrap').show();
-        $('#form-chat').show();
+    function chatClosed(msg) {
+        // $('#form-chat-wrap').show();
+        // $('#form-chat').show();
+        // $('#message-area').hide();
+        // $('#form-close-chat').hide();
+        $('#finished').html(msg).show();
         $('#message-area').hide();
-        $('#form-close-chat').hide();
+        $('#wrapper').hide();
+        $('button .loader').addClass('loaded');
+        $('.siButtonActionClose-chat').show();
     }
 
     function addMessage(author, message, datetime, msgType, agentPhoto, chatStatus) {
