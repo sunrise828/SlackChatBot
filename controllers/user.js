@@ -13,7 +13,7 @@ module.exports = {
         return User.findOrCreate(params);
     },
     getNewChannel: (uname, que) => {
-        const name = uname.toLowerCase().replace(/\s/g, '_') + '_' + que.toLowerCase().replace(/\s/g, '_');
+        const name = uname.toLowerCase().replace(/[^a-zA-Z0-9]/g, '').replace(/\s/g, '_') + '_' + que.toLowerCase().replace(/\s/g, '_');
         return new Promise(async (resolve, reject) => {
             const usersD = await db.sequelize.query(`SELECT * FROM ChatUsers where channel like 'z_${name}_%' order by channel desc;`, {
                 type: db.sequelize.QueryTypes.SELECT

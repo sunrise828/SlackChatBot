@@ -121,6 +121,13 @@ $(function () {
     $('#preSalesStart').click(function (event) {
         var name = $('#name').val();
         var email = $('#email').val();
+        var nameFormat = /^[A-Za-z0-9 ,']+$/;
+        if (!nameFormat.test(name)) {
+            $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>Invalid Name Type!</p>");
+            $('#buffer').css('padding-top', '30px');
+            return;
+        }
+        
         sessionId = guid();
         localStorage.setItem("rtp_name", name);
         localStorage.setItem("rtp_email", email);
