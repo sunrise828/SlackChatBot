@@ -123,7 +123,7 @@ $(function () {
         var email = $('#email').val();
         var nameFormat = /^[A-Za-z0-9 ,']+$/;
         if (!nameFormat.test(name)) {
-            $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>Invalid Name Type!</p>");
+            $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>Please enter a valid name with no special characters</p>");
             $('#buffer').css('padding-top', '30px');
             return;
         }

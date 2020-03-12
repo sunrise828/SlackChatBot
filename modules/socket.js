@@ -331,20 +331,20 @@ async function roomInit(socket, user, workspace, refresh) {
                     channel: user.channelId
                 });
     
-                await History.create({
-                    text: `<b>${user.name}</b> <em>went offline</em>.`,
-                    channel: roomId,
-                    domain: 'system-user'
-                });
+                // await History.create({
+                //     text: `<b>${user.name}</b> <em>went offline</em>.`,
+                //     channel: roomId,
+                //     domain: 'system-user'
+                // });
     
-                importTicket({
-                    requestorName: user.name,
-                    requestorEmail: user.email,
-                    serialId: user.workspaceId,
-                    content: `<b>${user.name}</b> <em>went offline</em>.`,
-                    domain: 'system',
-                    ticketId: user.ticketId
-                });
+                // importTicket({
+                //     requestorName: user.name,
+                //     requestorEmail: user.email,
+                //     serialId: user.workspaceId,
+                //     content: `<b>${user.name}</b> <em>went offline</em>.`,
+                //     domain: 'system',
+                //     ticketId: user.ticketId
+                // });
             }
         }
     });
