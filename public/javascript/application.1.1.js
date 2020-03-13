@@ -74,7 +74,7 @@ $(function () {
             });
 
             if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
-                $('#message').focus();
+                // $('#message').focus();
             } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
                 $('#message').addClass('message_ios');
             }
@@ -104,7 +104,7 @@ $(function () {
         var siEmail = localStorage.getItem("rtp_email");
         if (siEmail && siEmail.length > 0) { $("#email").val(siEmail); }
         $('.slim-scroll').slimScroll({
-            height: (window.innerHeight || chatwidget_vars.widgetHeight) - 120 + 'px',
+            height: (window.innerHeight || chatwidget_vars.widgetHeight) - 115 + 'px',
             railVisible: true,
             start: 'bottom'
         });
@@ -192,7 +192,7 @@ $(function () {
             'height': '251px;'
         });
         if (!/iPhone|iPod|Android/.test(window.navigator.userAgent)) {
-            $('#message').focus();
+            // $('#message').focus();
         } else if (/iPhone|iPod/.test(window.navigator.userAgent)) {
 
         }
@@ -212,6 +212,7 @@ $(function () {
         } else if (json.message && json.message.length > 0) {
             $('#typingIndicator').addClass('hide');
             clearAgentTyping();
+            // json.message = json.message.replace(/\n/g, '<br />');
             if (json.domain == 'slack') {
                 var ap = supportManIcon;
                 addMessage(supportManName, json.message, date, json.type, ap, json.chatStatus);
@@ -243,9 +244,7 @@ $(function () {
             var time = moment(utcTime).local().format('hh:mm a');
             $('.siButtonActionClose-chat').show();
             $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
-            $('#status .welcome-msg .si-block-paragraph').html(event.welcomeMsg);
-            setTimeout(function () {
-                var html = `<div class="sic-block sic-block-admin ticket-info">
+            var html = `<div class="sic-block sic-block-admin ticket-info">
                         <div class="si-comment-wrapper si-comment-wrapper-admin">
                             <div class="si-comment-wrapper-admin-img">
                                 <div class="si-img">
@@ -254,9 +253,7 @@ $(function () {
                             </div>
                             <div class="si-comment">
                                 <div class="si-blocks">
-                                    <div class="si-block si-block-paragraph">
-                                        A ticket for this conversation has been created.  Your ticket number is: #T-${event.ticket}
-                                    </div>
+                                    <div class="si-block si-block-paragraph">A ticket for this conversation has been created.  Your ticket number is: #T-${event.ticket}</div>
                                 </div>
                             </div>
                             <div class="si-comment-wrapper-admin-name">${time}</div>
@@ -264,10 +261,13 @@ $(function () {
                         <span></span>
                     </div>`;
                 if ($('#status .ticket-info').length <= 0) {
-                    $('#status').append(html);
+                    $('#status').prepend(html);
                 } else {
                     $('#status .ticket-info').replaceWith(html);
                 }
+            
+            setTimeout(function () {
+                $('#status .welcome-msg .si-block-paragraph').html(event.welcomeMsg);    
             }, 500);
 
         })
@@ -421,10 +421,45 @@ $(function () {
         parent.postMessage('siFinished', '*');
     }
 
+    $(document)
+    .one('focus.autoExpand', 'textarea.autoExpand', function(){
+        var savedValue = this.value;
+        this.value = '';
+        this.baseScrollHeight = this.scrollHeight;
+        this.value = savedValue;
+    })
+    .on('input.autoExpand', 'textarea.autoExpand', function(){
+        var minRows = 1, rows;
+        const old_rows = this.rows;
+        this.rows = minRows;
+        
+        rows = Math.ceil((this.scrollHeight - this.baseScrollHeight) / 16);
+        if (rows > 6) {
+            rows = 6;
+            $(this).css('overflow-y', 'auto');
+        }
+        if (rows > 4) {
+            rows = rows - 1;
+        } else if (rows < 2){
+            rows = 1;
+        }
+        this.rows = rows;
+        if (old_rows != rows) {
+            setTimeout(() => {
+                var height = parseInt($('#message-area').css('height')) || 70;
+                var scrollTo_val = $('#form-chat').prop('scrollHeight') + 'px';
+                $('#form-chat').slimScroll({
+                    height: (window.innerHeight || chatwidget_vars.widgetHeight) - height - 40 + 'px',
+                    scrollTo: scrollTo_val
+                });
+            }, 0);
+        }
+    });
+
     input.keydown(function (e) {
-        if (e.keyCode === 13) {
+        var msg = $(this).val();
+        if (e.keyCode === 13 && !e.shiftKey) {
             e.preventDefault();
-            var msg = $(this).val();
             if (msg.length > 0) {
                 var ctime = new Date().getTime();
                 var msg = {
@@ -442,8 +477,16 @@ $(function () {
                 // pushl(msg);
                 socket.emit('Message', msg);
             }
-            $(this).val('').focus();
-        } else {
+            $(this).attr('rows', 1);
+            $(this).val('');
+            $('.slim-scroll').slimScroll({
+                height: (window.innerHeight || chatwidget_vars.widgetHeight) - 115 + 'px'
+            });
+        } else if (e.keyCode != 8 && e.keyCode != 46){
+            if (msg.length > 255) {
+                alert('Plase break your message smaller!');
+                e.preventDefault();
+            }
             socket.emit('Typing');
         }
     });
@@ -527,7 +570,7 @@ $(function () {
             $('#form-close-chat').show();
             var scrollTo_val = $('#form-chat').prop('scrollHeight') + 'px';
             $('#form-chat').slimScroll({
-                scrollTo: scrollTo_val
+                scrollTo: scrollTo_val + 10
             });
             setTimeout(() => {
 
