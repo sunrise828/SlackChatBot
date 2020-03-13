@@ -418,7 +418,7 @@ $(function () {
         $('#wrapper').hide();
         $('button .loader').addClass('loaded');
         $('.siButtonActionClose-chat').show();
-        parent.postMessage('siFinished', '*');
+        parent.postMessage('siFinished&' + $('#finished').css('height'), '*');
     }
 
     $(document)
