@@ -284,7 +284,7 @@ input.text {
     padding: 0;
     resize: none;
     width: 93%;
-    background: #ffffff;
+    background: #eee;
     margin: 0px;
     padding: 10px;
     padding-right: 35px;
@@ -383,7 +383,7 @@ input.text {
 
 #textarea-wrapper {
     background-clip: padding-box;
-    background-color: #ffffff;
+    background-color: #eee;
     border-radius: 3px;
     display: block;
     padding: 0px;
