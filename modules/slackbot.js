@@ -247,25 +247,13 @@ exports.init = async (workspace) => {
         return;
       }
 
-      const user = await User.findOne({
+      User.findOne({
         where: {
           channelId: event.channel
         }
-      });
-
-      if (user) {
-        // let slackUsers = [], userNames = [];
-        // if (user.slackId) {
-        //   slackUsers = user.slackId.split(',');
-        //   userNames = user.slackUserName.split(',');
-        // }
-        // const userIndex = slackUsers.findIndex(user => (user == event.user));
-        // let newUsers = slackUsers.filter(id => (id != event.user));
-        // newUsers = _.uniq(newUsers);
-        // user.slackId = newUsers.join(',');
-        // let temp = userNames.splice(0, userIndex);
-        // temp = temp.concat(userNames.splice(userIndex + 1));
-        // user.slackUserName = temp.join(',');
+      })
+      .then(async (user) => {
+        console.log('slackbot: user found');
         user.status = 1;
         await user.save();
         socket.emitToSocketId(event.channel, 'Finished', {
@@ -306,7 +294,10 @@ exports.init = async (workspace) => {
             ticketId: user.ticketId
           });
         }
-      }
+      })
+      .catch(err => {
+        console.log('error occured', err);
+      })
     })
 
     await global.bot[workspace.id].start();
