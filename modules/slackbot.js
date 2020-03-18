@@ -242,11 +242,10 @@ exports.init = async (workspace) => {
     })
 
     global.bot[workspace.id].on('channel_archive', async function (event) {
+      console.log('channel archived', event);
       if (event.user == workspace.botUserId || event.user == workspace.userId) {
         return;
       }
-
-      console.log('channel archived', event);
 
       const user = await User.findOne({
         where: {
