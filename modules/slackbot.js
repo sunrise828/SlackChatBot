@@ -29,6 +29,10 @@ exports.init = async (workspace) => {
         return;
       }
 
+      if (data.text.indexOf(data.user) >= 0) {
+        return;
+      }
+
       const user = await User.findOne({
         where: {
           channelId: data.channel
@@ -240,6 +244,8 @@ exports.init = async (workspace) => {
       if (event.user == workspace.botUserId || event.user == workspace.userId) {
         return;
       }
+
+      console.log('channel archived', event);
 
       const user = await User.findOne({
         where: {
