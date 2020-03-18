@@ -291,7 +291,8 @@ exports.init = async (workspace) => {
             serialId: user.workspaceId,
             domain: 'slack',
             userId: event.user,
-            ticketId: user.ticketId
+            ticketId: user.ticketId,
+            content: `<em>Chat closed by ${user.slackUserName}.</em>`
           });
         }
       })
