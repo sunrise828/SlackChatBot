@@ -29,7 +29,8 @@ exports.init = async (workspace) => {
         return;
       }
 
-      if (data.text.indexOf(data.user) >= 0) {
+      console.log('message', data);
+      if (data.text.indexOf(data.channel) >= 0) {
         return;
       }
 
