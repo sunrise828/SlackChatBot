@@ -364,23 +364,26 @@ $(function () {
         })
 
         socket.on('Error', function (event) {
-            $('.container-fluid.loader').hide();
-            if (event.reason == 'wrong_workspace_id' && event.sessionId == sessionId) {
-                chatStatus = 'not-started';
-                localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
-                const error = 'You have a wrong workspace id now.\n Please contact our support!';
-                $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>" + error + "</p>");
-                $('#buffer').css('padding-top', '30px');
-            } else if (event.reason == 'not_support' && event.sessionId == sessionId) {
-                localStorage.clear();
-                chatStatus = 'not-support';
-                localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
-            } else if (event.reason == 'not_support' && event.sessionId == sessionId) {
-                chatStatus = 'not-started';
-                localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
-            }
-            if (event.sessionId == sessionId)
+            if (event.sessionId == sessionId) {
+                $('.container-fluid.loader').hide();
+                if (event.reason == 'wrong_workspace_id') {
+                    chatStatus = 'not-started';
+                    localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
+                    const error = 'You have a wrong workspace id now.\n Please contact our support!';
+                    $('#errorMsg').html("<p class='operator' style='color:red;text-align:center'>" + error + "</p>");
+                    $('#buffer').css('padding-top', '30px');
+                } else if (event.reason == 'not_support') {
+                    localStorage.clear();
+                    chatStatus = 'not-support';
+                    localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
+                    $('.no-support h4').html('Thanks for your message. We will be touch soon!');
+                } else if (event.reason == 'unavailable') {
+                    chatStatus = 'not-support';
+                    localStorage.setItem("rtp_chatstatus_" + wid, chatStatus);
+                    $('.no-support h4').html(event.msg);
+                }
                 renderPans();
+            }
         })
 
         socket.on('Alert', function (event) {

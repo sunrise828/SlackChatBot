@@ -7,6 +7,8 @@ const User = require('../models').ChatUser;
 const env = process.env.NODE_ENV || 'development';
 const config = require(__dirname + '/../config/config.json')[env];
 
+const { apiTicket, replaceKeywords } = require('../utils');
+
 function emitToSocketId(socketId, eventName, data) {
     console.log(`Emit ${eventName}`, socketId, data);
     global.io.to(`${socketId}`).emit(eventName, data);
@@ -35,8 +37,11 @@ exports.init = async () => {
                     sessionId: data.sessionId
                 });
             } else {
-                console.log('available workspace');
-                const workspace = { ...wRes.data.slackbot, warnning: wRes.data.warnmessage };
+                const workspace = { 
+                    ...wRes.data.slackbot,
+                    warnning: wRes.data.warnmessage,
+                    unavailable: wRes.data.unavailable
+                };
 
                 const presence = await slackbot.verifyChannels(workspace);
                 if (!presence) {
@@ -55,6 +60,13 @@ exports.init = async () => {
                             sessionId: data.sessionId
                         }
                     });
+                    if (workspace.unavailable.status > 0) {
+                        return emitOverChannel('Error', {
+                            reason: 'unavailable',
+                            sessionId: data.sessionId,
+                            msg: workspace.unavailable.message
+                        });
+                    }
                 } else {
                     const tRes = await axios.post(config.apiHost + 'createticket',
                         {
@@ -71,7 +83,13 @@ exports.init = async () => {
                         });
                     }
                     const ticket = tRes.data.ticket;
-
+                    if (workspace.unavailable.status > 0) {
+                        return emitOverChannel('Error', {
+                            reason: 'unavailable',
+                            sessionId: data.sessionId,
+                            msg: workspace.unavailable.message
+                        });
+                    }
                     const newChannel = await UserController.getNewChannel(data.name, workspace.queueName);
                     const users = await User.findOrCreate({
                         where: {
@@ -297,7 +315,7 @@ async function roomInit(socket, user, workspace, refresh) {
                     params.ticketId = user.ticketId;
                 }
 
-                importTicket(params);
+                apiTicket('import', params);
             } else {
                 console.log('error message to slack', res);
             }
@@ -422,7 +440,8 @@ async function clearClientTimer(roomId, workspace, keys) {
                             msg: message
                         });
                     }
-                    importTicket({
+
+                    apiTicket('import', {
                         requestorName: keys['name'],
                         requestorEmail: keys['email'],
                         serialId: keys.workspaceId,
@@ -451,30 +470,6 @@ async function clearClientTimer(roomId, workspace, keys) {
     }
 }
 
-function importTicket(params) {
-    axios.post(config.apiHost + 'importticket', params)
-    .then(async (res) => {
-        console.log('import ticket', res.data);
-    })
-    .catch(err => {
-        console.log('api failed', err);
-    });
-}
-
-function replaceKeywords(str, keys) {
-    const fIndex = str.indexOf('{');
-    const lIndex = str.indexOf('}', fIndex) || str.length - 1;
-    if (fIndex >= 0) {
-        const key = str.substr(fIndex + 1, lIndex - fIndex - 1);
-        if (keys[key]) {
-            str = str.substr(0, fIndex) + keys[key] + str.substr(lIndex + 1);
-            return replaceKeywords(str, keys);
-        }
-    } else {
-        return str;
-    }
-}
-
 async function finishChannel(roomId, workspace, flag = true) {
     const user = await User.findOne({
         where: {
@@ -492,7 +487,7 @@ async function finishChannel(roomId, workspace, flag = true) {
             });
         }
 
-        importTicket({
+        apiTicket('import', {
             requestorName: user.name,
             requestorEmail: user.email,
             serialId: user.workspaceId,
@@ -501,22 +496,14 @@ async function finishChannel(roomId, workspace, flag = true) {
             ticketId: user.ticketId
         });
         if (user.ticketId) {
-            axios.post(config.apiHost + 'finishticket', {
+            apiTicket('finish', {
                 requestorName: user.name,
                 requestorEmail: user.email,
                 serialId: user.workspaceId,
                 domain: flag? 'system': 'user',
                 ticketId: user.ticketId,
                 content: flag ? `<em>Chat closed due to inactivity</em>.` : `<em>Chat closed by ${user.name}.</em>`
-            })
-                .then(async (res) => {
-                    if (res.status) {
-                        console.log('ticket finished ', res.data.ticket);
-                    }
-                })
-                .catch(err => {
-                    console.log('api failed', err);
-                });
+            });
         }
 
     }
