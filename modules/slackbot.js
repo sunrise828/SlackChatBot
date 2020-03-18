@@ -30,7 +30,7 @@ exports.init = async (workspace) => {
       }
 
       console.log('message', data);
-      if (data.text.indexOf(data.channel) >= 0) {
+      if (data.text.indexOf('archived the channel') >= 0) {
         return;
       }
 
