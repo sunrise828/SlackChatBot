@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 const moment = require('moment');
 const UserController = require('../controllers').user;
 const slackbot = require('./slackbot');
@@ -61,11 +62,12 @@ exports.init = async () => {
                         }
                     });
                     if (workspace.unavailable.status > 0) {
-                        return emitOverChannel('Error', {
-                            reason: 'unavailable',
-                            sessionId: data.sessionId,
-                            msg: workspace.unavailable.message
-                        });
+                        return unavailableRoomInit(socket, user, workspace, data);
+                        // return emitOverChannel('Error', {
+                        //     reason: 'unavailable',
+                        //     sessionId: data.sessionId,
+                        //     msg: workspace.unavailable.message
+                        // });
                     }
                 } else {
                     const tRes = await axios.post(config.apiHost + 'createticket',
@@ -84,11 +86,13 @@ exports.init = async () => {
                     }
                     const ticket = tRes.data.ticket;
                     if (workspace.unavailable.status > 0) {
-                        return emitOverChannel('Error', {
-                            reason: 'unavailable',
-                            sessionId: data.sessionId,
-                            msg: workspace.unavailable.message
-                        });
+                        return unavailableRoomInit(socket, user, workspace, 
+                            {...data, ticketId: ticket});
+                        // return emitOverChannel('Error', {
+                        //     reason: 'unavailable',
+                        //     sessionId: data.sessionId,
+                        //     msg: workspace.unavailable.message
+                        // });
                     }
                     const newChannel = await UserController.getNewChannel(data.name, workspace.queueName);
                     const users = await User.findOrCreate({
@@ -487,14 +491,14 @@ async function finishChannel(roomId, workspace, flag = true) {
             });
         }
 
-        apiTicket('import', {
-            requestorName: user.name,
-            requestorEmail: user.email,
-            serialId: user.workspaceId,
-            content: flag ? `<em>Chat closed due to inactivity</em>.` : `<em>Chat closed by ${user.name}.</em>`,
-            domain: 'system',
-            ticketId: user.ticketId
-        });
+        // apiTicket('import', {
+        //     requestorName: user.name,
+        //     requestorEmail: user.email,
+        //     serialId: user.workspaceId,
+        //     content: flag ? `<em>Chat closed due to inactivity</em>.` : `<em>Chat closed by ${user.name}.</em>`,
+        //     domain: 'system',
+        //     ticketId: user.ticketId
+        // });
         if (user.ticketId) {
             apiTicket('finish', {
                 requestorName: user.name,
@@ -506,5 +510,87 @@ async function finishChannel(roomId, workspace, flag = true) {
             });
         }
 
+    }
+}
+
+async function unavailableRoomInit(socket, user, workspace, data) {
+    const channelId = uuidv4();
+    const ticketId = user? user.ticketId: data.ticketId;
+    let latest = [];
+    socket.join(channelId);
+    emitToSocketId(channelId, 'Welcome', {
+        ticket: ticketId,
+        welcomeMsg: workspace.unavailable.message,
+        ts: moment(user? user.createdAt: new Date().getTime()).utcOffset(0).toISOString()
+    });
+    emitToSocketId(channelId, 'Room:Created', {
+        sessionId: data.sessionId,
+        channel: channelId,
+        ticket: ticketId
+    });
+
+    if (user) {
+        const histories = await History.findAll({
+            where: {
+                channel: user.channelId
+            },
+            order: [
+                'createdAt'
+            ]
+        });
+
+        latest = histories.map(history => ({
+            text: history.text,
+            domain: history.domain,
+            createdAt: history.createdAt
+        }));
+    }
+    emitToSocketId(channelId, 'Histories', {
+        status: 'history',
+        msgs: latest,
+        ticket: ticketId,
+        slackUser: user? user.slackUserName: ''
+    });
+
+    let finalMsg = workspace.warnning[workspace.warnning.length - 1].warnMessage;
+    finalMsg = replaceKeywords(finalMsg, {
+        email: data.email
+    })
+        
+    if (workspace.unavailable.sendmessage > 0) {
+        socket.in(`${channelId}`).on('Message', async (message) => {
+            emitToSocketId(channelId, 'Message', {
+                author: '',
+                message: message.message,
+                type: '',
+                event_ts: moment().utcOffset(0).toISOString(),
+                ts: moment().utcOffset(0).toISOString(),
+                domain: 'user'
+            });
+
+            let params = {
+                requestorName: data.name,
+                requestorEmail: data.email,
+                serialId: data.wid,
+                content: message.message,
+                domain: 'user',
+                ticketId: ticketId
+            };
+
+            axios.post(config.apiHost + 'importticket', params)
+            .then(res => {
+                apiTicket('finish', {...params,
+                    content: 'Chat closed by system as unavailable status.'
+                });
+            })
+            
+            emitToSocketId(channelId, 'Finished', {
+                msg: finalMsg
+            });
+        });
+    } else {
+        emitToSocketId(channelId, 'Finished', {
+            msg: finalMsg
+        });
     }
 }

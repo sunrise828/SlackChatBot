@@ -274,15 +274,15 @@ exports.init = async (workspace) => {
           domain: 'system'
         });
 
-        apiTicket('import', {
-          requestorName: user.name,
-          requestorEmail: user.email,
-          serialId: user.workspaceId,
-          content: `<em>Chat closed by ${user.slackUserName}.</em>`,
-          domain: 'slack',
-          userId: event.user,
-          ticketId: user.ticketId
-        });
+        // apiTicket('import', {
+        //   requestorName: user.name,
+        //   requestorEmail: user.email,
+        //   serialId: user.workspaceId,
+        //   content: `<em>Chat closed by ${user.slackUserName}.</em>`,
+        //   domain: 'slack',
+        //   userId: event.user,
+        //   ticketId: user.ticketId
+        // });
         
         if (user.ticketId) {
           apiTicket('finish', {
