@@ -34,6 +34,10 @@ exports.init = async (workspace) => {
         return;
       }
 
+      if (data.text.indexOf('rtp-finish') >= 0 || data.text.indexOf('rtp-help') >= 0) {
+        return;
+      }
+
       const user = await User.findOne({
         where: {
           channelId: data.channel
