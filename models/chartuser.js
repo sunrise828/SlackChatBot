@@ -11,6 +11,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
+    slackToken: DataTypes.STRING,
     slackId: DataTypes.STRING,
     slackUserName: DataTypes.STRING,
     ticketId: DataTypes.STRING,

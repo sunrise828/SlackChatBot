@@ -243,9 +243,9 @@ exports.init = async (workspace) => {
 
     global.bot[workspace.id].on('channel_archive', async function (event) {
       console.log('channel archived', event);
-      if (event.user == workspace.botUserId || event.user == workspace.userId) {
-        return;
-      }
+      // if (event.user == workspace.botUserId || event.user == workspace.userId) {
+      //   return;
+      // }
 
       User.findOne({
         where: {
@@ -262,7 +262,7 @@ exports.init = async (workspace) => {
         });
         await global.slackWeb[workspace.id].chat.postMessage({
           channel: workspace.incomeChannelId,
-          text: `_Chat closed on_ <#${user.channelId}|${user.channel}> by _<@${event.user}>_.`,
+          text: `_Chat closed on_ <#${user.channelId}|${user.channel}> by _<@${user.slackId}>_.`,
           attachments: [{
             pretext: 'Visitor Information',
             text: `Name: ${user.name} \n Email: ${user.email}\n Page: ${user.webPage} `

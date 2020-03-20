@@ -106,7 +106,8 @@ exports.init = async () => {
                             workspaceId: data.wid,
                             status: 0,
                             webPage: data.currentPage,
-                            ticketId: ticket
+                            ticketId: ticket,
+                            slackToken: workspace.accessToken
                         }
                     });
                     if (users.length > 0) {
