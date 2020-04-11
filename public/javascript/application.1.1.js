@@ -58,12 +58,12 @@ $(function () {
             $('#wrapper').hide();
             $('#message-area').hide();
             $('#form-presales').show();
-            $('.silc-btn-button-close').hide();
+            $('.siButtonActionClose-chat').hide();
         } else if (chatStatus != 'not-started') {
             $('.container-fluid.loader').hide();
             newSubscribe();
             $('#form-presales').hide();
-            $('.silc-btn-button-close').show();
+            $('.siButtonActionClose-chat').show();
             $('#form-chat-wrap').show();
             if (chatStatus != 'finished')
                 $('#message-area').show();
@@ -82,7 +82,7 @@ $(function () {
         } else if (chatStatus == 'not-started') {
             $('.container-fluid.loader').hide();
             $('#form-presales').show();
-            $('.silc-btn-button-close').hide();
+            $('.siButtonActionClose-chat').hide();
             $('#form-chat-wrap').hide();
             $('#message-area').hide();
             $('#form-chat').hide();
@@ -183,7 +183,7 @@ $(function () {
         $('#form-chat-wrap').show();
         $('#message-area').show();
         $('#form-chat').show();
-        $('.silc-btn-button-close').show();
+        $('.siButtonActionClose-chat').show();
         $('#textarea').css({
             'display': 'table-row'
         });
@@ -233,7 +233,7 @@ $(function () {
         $('.no-support').hide();
         $('#wrapper').show();
         $('#form-presales').show();
-        $('.silc-btn-button-close').hide();
+        $('.siButtonActionClose-chat').hide();
         $('#form-chat-wrap').hide();
     });
 
@@ -242,7 +242,7 @@ $(function () {
         socket.on('Welcome', function (event) {
             const utcTime = moment(event.ts).utcOffset(0).toISOString();
             var time = moment(utcTime).local().format('hh:mm a');
-            $('.silc-btn-button-close').show();
+            $('.siButtonActionClose-chat').show();
             $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
             var html = `<div class="sic-block sic-block-admin ticket-info">
                         <div class="si-comment-wrapper si-comment-wrapper-admin">
@@ -320,7 +320,7 @@ $(function () {
             $('.container-fluid.loader').hide();
             $('button .loader').removeClass('loaded');
             $('#title-text').addClass('loaded');
-            $('.silc-btn-button-close').show();
+            $('.siButtonActionClose-chat').show();
             chatContent.html('');
             if (event.ticket) {
                 $('#title-text').html(chatwidget_vars.widgetTitle + `(#T-${event.ticket})`);
@@ -420,7 +420,7 @@ $(function () {
         $('#message-area').hide();
         $('#wrapper').hide();
         $('button .loader').addClass('loaded');
-        $('.silc-btn-button-close').show();
+        $('.siButtonActionClose-chat').show();
         parent.postMessage('siFinished&' + $('#finished').css('height'), '*');
     }
 
@@ -555,7 +555,7 @@ $(function () {
         // $('#message-area').hide();
         // // $('#form-chat').hide();
         // // $('#title-text').html(widgetTitle);
-        // // $('.silc-btn-button-close').hide();
+        // // $('.siButtonActionClose-chat').hide();
         // $('button .loader').addClass('loaded');
         // $('#title-text').addClass('loaded');
         // var email = localStorage.getItem("rtp_email");
@@ -564,7 +564,7 @@ $(function () {
         // addMessage('System', msg, time, 'admin', systemIcon, 'Alert');
     });
 
-    $('.silc-btn-button-close').click(function (e) {
+    $('.siButtonActionClose-chat').click(function (e) {
         $('#form-close-chat').remove();
         if ("not-started" !== chatStatus) {
             e.preventDefault();
@@ -600,6 +600,10 @@ $(function () {
         parent.postMessage('siMinimize', '*');
     });
 
+    $('.btn#cancelChat').click(function (e) {
+        parent.postMessage('siMinimize', '*');
+    });
+
     function chatClosed(msg) {
         // $('#form-chat-wrap').show();
         // $('#form-chat').show();
@@ -609,7 +613,7 @@ $(function () {
         $('#message-area').hide();
         $('#wrapper').hide();
         $('button .loader').addClass('loaded');
-        $('.silc-btn-button-close').show();
+        $('.siButtonActionClose-chat').show();
     }
 
     function addMessage(author, message, datetime, msgType, agentPhoto, chatStatus) {
