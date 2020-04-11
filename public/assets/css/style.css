@@ -1040,8 +1040,7 @@ select:focus {
     margin-top: 6px;
     margin-right: 10px;
     height: 13px;
-    width: 13px;
-    display: none;
+    width: 13px;    
 }
 
 .no-support, .container-fluid.loader {
